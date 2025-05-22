@@ -31,7 +31,8 @@ foreach ($arquivos as $arquivo) {
 
 // === Etapa 3: Corrigir find
 $data_full = $data_referencia . $hora_simulada . $tempo_final;
-shell_exec("adb shell "find $DEST -type f -exec touch -t $data_full {} \\\\\\;"");
+$cmd = "adb shell 'find $DEST -type f -exec touch -t {$data_full} {} \\;'"; 
+shell_exec($cmd);
 
 // === Etapa 4: Replay falso
 $replay = "{$DEST}/files/MReplays/replay_fake.bin";
