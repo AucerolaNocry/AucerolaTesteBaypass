@@ -1,47 +1,48 @@
 <?php
-echo "====== SUBSTITUIR PASTA E CAMUFLAR PARA BURLAR O KELLERSS ======\n";
+echo "====== KELLERSS BYPASS: CLONE CAMUFLADO & METADADOS VALIDOS ======\n";
 
-// Caminhos de origem e destino
 $SRC = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
 $DEST = "/storage/emulated/0/Android/data/com.dts.freefireth";
-$DATA = "20240501";
 
-// Arquivos a camuflar com seus horários
-$ARQUIVOS = [
-    "$DEST/files/ShaderStripSettings" => "0930.00",
-    "$DEST/files" => "0945.00",
-    "$DEST/files/contentcache" => "1005.00",
-    "$DEST/files/contentcache/optional" => "1015.00",
-    "$DEST/files/contentcache/optional/android" => "1025.00",
-    "$DEST/files/contentcache/optional/android/gameassetbundles" => "1035.00",
-    "$DEST" => "1045.00",
-    "$DEST/files/ffrtc_log.txt" => "2300.00"
-];
+// Captura a hora de instalação original do FF
+echo "[*] Coletando data de instalação...\n";
+$instalacao = shell_exec("adb shell dumpsys package com.dts.freefireth | grep -i firstInstallTime");
+preg_match("/firstInstallTime=([\d-]+\s[\d:]+)/", $instalacao, $match);
+$dataFormatada = $match[1] ?? date("Y-m-d H:i:s");
+$timestamp = date("YmdHi", strtotime($dataFormatada));
 
-// Limpa logs para remover rastros do processo
-echo "[*] Limpando logcat para evitar rastreamento...\n";
+// Zera o logcat
+echo "[*] Limpando logcat...\n";
 shell_exec("adb logcat -c");
 
-// Remove a pasta antiga
-echo "[*] Removendo pasta alvo original...\n";
+// Remove a pasta original
+echo "[*] Apagando estrutura original...\n";
 shell_exec("adb shell rm -rf " . escapeshellarg($DEST));
 
-// Copia nova pasta (usando comando encadeado para evitar timestamps suspeitos)
+// Copia o novo conteúdo
 echo "[*] Copiando pasta camuflada...\n";
 shell_exec("adb shell 'cd " . dirname($SRC) . " && cp -rf " . basename($SRC) . " " . dirname($DEST) . "'");
 
-// Aplica camuflagem de data/hora sem deixar rastros diretos
-echo "[*] Camuflando metadados...\n";
-foreach ($ARQUIVOS as $arquivo => $hora) {
-    $esc = escapeshellarg($arquivo);
-    $touch = "adb shell 'touch -t {$DATA}{$hora} $esc && mv $esc {$esc}.tmp && mv {$esc}.tmp $esc'";
-    shell_exec($touch);
-    echo "[✓] Camuflado: $arquivo\n";
+// Camufla todas as datas para bater com a instalação
+echo "[*] Aplicando timestamps iguais à instalação...\n";
+$pastas = [
+    "$DEST/files",
+    "$DEST/files/contentcache",
+    "$DEST/files/contentcache/optional/android/gameassetbundles",
+    "$DEST/files/ShaderStripSettings",
+    "$DEST/files/ffrtc_log.txt"
+];
+
+foreach ($pastas as $alvo) {
+    $esc = escapeshellarg($alvo);
+    shell_exec("adb shell 'touch -t {$timestamp}.00 $esc && mv $esc {$esc}.tmp && mv {$esc}.tmp $esc'");
+    echo "[✓] Camuflado: $alvo\n";
 }
 
-// Acesso indireto para forçar atualização de uso real
-echo "[*] Forçando access time legítimo via ls...\n";
+// Simula uso legítimo
+echo "[*] Simulando acesso com comandos neutros...\n";
 shell_exec("adb shell ls -lR " . escapeshellarg($DEST) . " > /dev/null");
+shell_exec("adb shell monkey -p com.dts.freefireth -c android.intent.category.LAUNCHER 1");
 
-echo "[✓] Processo concluído com camuflagem avançada anti-KellerSS.\n";
+echo "[✓] Finalizado: Metadados e uso aparentam legítimos.\n";
 ?>
