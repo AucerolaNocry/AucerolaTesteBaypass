@@ -1,132 +1,116 @@
 <?php
-// Configurações de cores
-$vermelho = "\033[91m";
-$verde = "\033[92m";
-$amarelo = "\033[93m";
-$azul = "\033[94m";
-$reset = "\033[0m";
+// Configurações básicas
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Cores para terminal
+define('RED', "\033[91m");
+define('GREEN', "\033[92m");
+define('YELLOW', "\033[93m");
+define('BLUE', "\033[94m");
+define('RESET', "\033[0m");
 
 // Banner
-echo "$azul
-  ____  _           _       _____           _        _ _ 
- |  _ \| |         | |     / ____|         | |      | | |
- | |_) | | ___  ___| | __ | (___  _ __ ___ | |_ __ _| | |
- |  _ <| |/ _ \/ __| |/ /  \___ \| '_ ` _ \| __/ _` | | |
- | |_) | |  __/ (__|   <   ____) | | | | | | || (_| | | |
- |____/|_|\___|\___|_|\_\ |_____/|_| |_| |_|\__\__,_|_|_|
-$reset\n\n";
+function showBanner() {
+    echo BLUE . "
+   ___  _____  ____  _   _ 
+  / _ \|  ___|| __ )| | | |
+ | | | | |_   |  _ \| | | |
+ | |_| |  _|  | |_) | |_| |
+  \___/|_|    |____/ \___/ 
+                           
+" . RESET . "\n";
+}
+
+// Verificar ADB
+function checkADB() {
+    $output = shell_exec("adb devices 2>&1");
+    if (strpos($output, "device") === false) {
+        die(RED . "[!] Conecte um dispositivo via ADB primeiro!\n" . RESET);
+    }
+    return true;
+}
 
 // Menu principal
-function showMenu() {
-    global $vermelho, $verde, $amarelo, $azul, $reset;
+function mainMenu() {
+    showBanner();
+    echo YELLOW . "
+ [1] Bypass Free Fire
+ [2] Bypass Free Fire MAX
+ [3] Restaurar Backup
+ [4] Sair
+" . RESET;
     
-    echo "$amarelo
- [1]$verde Bypass Free Fire via ADB
- [2]$verde Bypass Free Fire MAX via ADB
- [3]$amarelo Restaurar original via ADB
- [4]$vermelho Sair
-$reset\n";
+    echo GREEN . "\n [?] Selecione: " . RESET;
+    $option = trim(fgets(STDIN));
+    
+    return $option;
 }
 
-// Verificar se ADB está disponível
-function checkADB() {
-    global $vermelho, $reset;
-    $adbCheck = shell_exec("adb devices 2>&1");
-    if (strpos($adbCheck, "daemon started successfully") === false && 
-        strpos($adbCheck, "List of devices attached") === false) {
-        die("$vermelho[!] ADB não encontrado ou não configurado corretamente!$reset\n");
-    }
-}
-
-// Função principal de bypass via ADB
-function adbBypass($gamePackage) {
-    global $vermelho, $verde, $amarelo, $reset;
-    
-    $sourceFolder = "/sdcard/Pictures/PINS/PINSSALVOS/$gamePackage";
-    $destFolder = "/sdcard/Android/data/$gamePackage";
-    $backupFolder = "/sdcard/Pictures/PINS/PINSSALVOS/$gamePackage.backup";
-    
-    echo "$amarelo[*] Verificando conexão ADB...$reset\n";
+// Executar bypass
+function runBypass($game) {
     checkADB();
     
-    // 1. Criar backup via ADB
-    echo "$amarelo[*] Criando backup via ADB...$reset\n";
-    shell_exec("adb shell rm -rf \"$backupFolder\"");
-    shell_exec("adb shell mkdir -p \"$backupFolder\"");
-    shell_exec("adb shell cp -r \"$destFolder\"/* \"$backupFolder\"/");
+    echo YELLOW . "\n [+] Iniciando bypass para $game..." . RESET;
     
-    // 2. Limpar conteúdo atual via ADB
-    echo "$amarelo[*] Limpando conteúdo atual via ADB...$reset\n";
-    shell_exec("adb shell rm -rf \"$destFolder\"/*");
-    shell_exec("adb shell rm -rf \"$destFolder\"/.* 2>/dev/null");
+    // 1. Backup
+    echo YELLOW . "\n [*] Criando backup..." . RESET;
+    shell_exec("adb shell mkdir -p /sdcard/FF_BACKUP");
+    shell_exec("adb shell cp -r /sdcard/Android/data/$game /sdcard/FF_BACKUP/");
     
-    // 3. Copiar conteúdo limpo via ADB
-    echo "$amarelo[*] Copiando conteúdo limpo via ADB...$reset\n";
-    shell_exec("adb shell cp -r \"$sourceFolder\"/* \"$destFolder\"/");
+    // 2. Limpar dados
+    echo YELLOW . "\n [*] Limpando dados..." . RESET;
+    shell_exec("adb shell rm -rf /sdcard/Android/data/$game/*");
     
-    // 4. Normalizar timestamps via ADB
-    echo "$amarelo[*] Normalizando timestamps via ADB...$reset\n";
-    $currentTime = time() - 86400; // 1 dia atrás
-    $timeFormat = date('YmdHi.s', $currentTime);
+    // 3. Restaurar dados limpos
+    echo YELLOW . "\n [*] Restaurando dados limpos..." . RESET;
+    shell_exec("adb shell cp -r /sdcard/Pictures/PINS/PINSSALVOS/$game/* /sdcard/Android/data/$game/");
     
-    shell_exec("adb shell find \"$destFolder\" -exec touch -t $timeFormat {} \;");
-    shell_exec("adb shell touch -t $timeFormat \"$destFolder\"");
+    // 4. Ajustar timestamps
+    echo YELLOW . "\n [*] Ajustando timestamps..." . RESET;
+    $time = date('YmdHi.s', time() - 86400);
+    shell_exec("adb shell find /sdcard/Android/data/$game -exec touch -t $time {} \;");
     
-    // 5. Limpar logs via ADB
-    echo "$amarelo[*] Limpando logs do jogo via ADB...$reset\n";
-    shell_exec("adb logcat -c");
-    
-    echo "$verde[+] Bypass via ADB concluído com sucesso!$reset\n\n";
+    echo GREEN . "\n [+] Bypass concluído com sucesso!\n" . RESET;
 }
 
-// Função para restaurar via ADB
-function adbRestore($gamePackage) {
-    global $verde, $amarelo, $reset;
+// Restaurar backup
+function restoreBackup($game) {
+    checkADB();
     
-    $destFolder = "/sdcard/Android/data/$gamePackage";
-    $backupFolder = "/sdcard/Pictures/PINS/PINSSALVOS/$gamePackage.backup";
-    
-    echo "$amarelo[*] Restaurando backup via ADB...$reset\n";
-    shell_exec("adb shell rm -rf \"$destFolder\"/*");
-    shell_exec("adb shell cp -r \"$backupFolder\"/* \"$destFolder\"/");
-    
-    echo "$verde[+] Restauração via ADB concluída!$reset\n\n";
+    echo YELLOW . "\n [+] Restaurando $game..." . RESET;
+    shell_exec("adb shell rm -rf /sdcard/Android/data/$game");
+    shell_exec("adb shell cp -r /sdcard/FF_BACKUP/$game /sdcard/Android/data/");
+    echo GREEN . "\n [+] Restauração concluída!\n" . RESET;
 }
 
 // Loop principal
-checkADB();
 while (true) {
-    showMenu();
-    echo "$amarelo[?] Selecione uma opção:$reset ";
-    $opcao = trim(fgets(STDIN));
+    $option = mainMenu();
     
-    switch ($opcao) {
-        case 1:
-            adbBypass("com.dts.freefireth");
+    switch ($option) {
+        case '1':
+            runBypass('com.dts.freefireth');
             break;
-        case 2:
-            adbBypass("com.dts.freefiremax");
+        case '2':
+            runBypass('com.dts.freefiremax');
             break;
-        case 3:
-            echo "$amarelo
- [1] Restaurar Free Fire
- [2] Restaurar Free Fire MAX
- [3] Restaurar ambos
-$reset";
-            echo "$amarelo[?] Escolha:$reset ";
+        case '3':
+            echo YELLOW . "\n [1] Free Fire\n [2] Free Fire MAX\n [3] Ambos\n" . RESET;
+            echo GREEN . " [?] Escolha: " . RESET;
             $restoreOpt = trim(fgets(STDIN));
             
-            if ($restoreOpt == 1 || $restoreOpt == 3) {
-                adbRestore("com.dts.freefireth");
+            if ($restoreOpt == '1' || $restoreOpt == '3') {
+                restoreBackup('com.dts.freefireth');
             }
-            if ($restoreOpt == 2 || $restoreOpt == 3) {
-                adbRestore("com.dts.freefiremax");
+            if ($restoreOpt == '2' || $restoreOpt == '3') {
+                restoreBackup('com.dts.freefiremax');
             }
             break;
-        case 4:
-            exit("$amarelo[*] Saindo...$reset\n");
+        case '4':
+            exit(GREEN . "\n [+] Saindo...\n" . RESET);
         default:
-            echo "$vermelho[!] Opção inválida!$reset\n";
+            echo RED . "\n [!] Opção inválida!\n" . RESET;
     }
 }
 ?>
