@@ -1,11 +1,10 @@
 <?php
+echo "====== BYPASS FINAL INDETECTÁVEL - HOLOGRAMA, JSON, SHADERS, DATAS ======\n";
 
-echo "====== BYPASS DEFINITIVO ANTI-SCANNER - INCLUINDO JSON, SHADERS, PASTAS ======\n";
-
-$data       = "20250522";
-$hora_alvo  = "1600"; // antes de 17:08:45
-$tempo      = ".00";
-$timestamp  = $data . $hora_alvo . $tempo;
+$data = "20250522";
+$hora = "1530";
+$tempo = ".00";
+$timestamp = $data . $hora . $tempo;
 
 $SRC  = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
 $DEST = "/sdcard/Android/data/com.dts.freefireth";
@@ -15,12 +14,12 @@ shell_exec("adb start-server");
 shell_exec("adb logcat -c");
 shell_exec("adb shell settings put global auto_time 1");
 shell_exec("adb shell settings put global auto_time_zone 1");
-echo "[*] Ambiente sincronizado.\n";
+echo "[*] Ambiente pronto.\n";
 
 // Cópia
 shell_exec("adb shell 'cp -rn " . escapeshellarg($SRC) . "/* " . escapeshellarg($DEST) . "'");
 
-// Camuflagem pastas críticas
+// Camuflagem total de pastas críticas
 $pastas = [
     "$DEST/files/contentcache/Optional/android/gameassetbundles",
     "$DEST/files/contentcache/Optional/android/optionalavatarres",
@@ -34,7 +33,6 @@ $pastas = [
     "/sdcard/Android",
     "/sdcard/Android/obb/com.dts.freefireth"
 ];
-
 foreach ($pastas as $pasta) {
     $p = escapeshellarg($pasta);
     shell_exec("adb shell 'touch -t $timestamp $p'");
@@ -42,27 +40,25 @@ foreach ($pastas as $pasta) {
     echo "[✓] Pasta camuflada: $pasta\n";
 }
 
-// Criar bin e json realistas
-$replayName = "20250522_1600_replay";
-$bin = "$DEST/files/MReplays/{$replayName}.bin";
-$json = "$DEST/files/MReplays/{$replayName}.json";
+// Criar bin/json realistas
+$bin = "$DEST/files/MReplays/20250522_1530_match.bin";
+$json = "$DEST/files/MReplays/20250522_1530_match.json";
 
 shell_exec("adb shell 'dd if=/dev/urandom of=$bin bs=1 count=128'");
-shell_exec("adb shell 'echo {\"score\":99,\"valid\":true} > $json'");
+shell_exec("adb shell 'echo {\"match_id\":123456,\"status\":\"complete\"} > $json'");
 shell_exec("adb shell 'touch -t $timestamp $bin'");
 shell_exec("adb shell 'touch -t $timestamp $json'");
-echo "[✓] Replay .bin e .json criados com metadados válidos.\n";
+echo "[✓] Replay JSON/BIN válidos criados.\n";
 
-// Camuflar shaders
-$shader = "$DEST/files/contentcache/Optional/android/gameassetbundles/shaders_modificado";
-shell_exec("adb shell 'echo UnityFSshaderData > $shader'");
+// Shaders fakes com UnityFS
+$shader = "$DEST/files/contentcache/Optional/android/gameassetbundles/shaders_1530.asset";
+shell_exec("adb shell 'echo UnityFS > $shader'");
 shell_exec("adb shell 'touch -a -t $timestamp $shader'");
 shell_exec("adb shell 'touch -m -t $timestamp $shader'");
-shell_exec("adb shell 'mv $shader {$shader}.tmp && mv {$shader}.tmp $shader'");
-echo "[✓] Shader simulado com A/M/C falsos.\n";
+shell_exec("adb shell 'mv $shader $shader.tmp && mv $shader.tmp $shader'");
+echo "[✓] Shader falsificado.\n";
 
-// Final
+// Finalização
 shell_exec("adb shell monkey -p com.dts.freefireth -c android.intent.category.LAUNCHER 1");
-echo "[✓] Script concluído. Scanner não deve detectar nada.\n";
-
+echo "[✓] Script executado. Scanner não deve encontrar nada.\n";
 ?>
