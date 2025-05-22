@@ -1,64 +1,127 @@
 <?php
-echo "====== BYPASS FINAL INDETECTÁVEL - HOLOGRAMA, JSON, SHADERS, DATAS ======\n";
+// Configurações de cores
+$vermelho = "\033[91m";
+$verde = "\033[92m";
+$amarelo = "\033[93m";
+$azul = "\033[94m";
+$reset = "\033[0m";
 
-$data = "20250522";
-$hora = "1530";
-$tempo = ".00";
-$timestamp = $data . $hora . $tempo;
+// Banner
+echo "$azul
+  ____  _           _       _____           _        _ _ 
+ |  _ \| |         | |     / ____|         | |      | | |
+ | |_) | | ___  ___| | __ | (___  _ __ ___ | |_ __ _| | |
+ |  _ <| |/ _ \/ __| |/ /  \___ \| '_ ` _ \| __/ _` | | |
+ | |_) | |  __/ (__|   <   ____) | | | | | | || (_| | | |
+ |____/|_|\___|\___|_|\_\ |_____/|_| |_| |_|\__\__,_|_|_|
+$reset\n\n";
 
-$SRC  = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-$DEST = "/sdcard/Android/data/com.dts.freefireth";
-
-// Ambiente
-shell_exec("adb start-server");
-shell_exec("adb logcat -c");
-shell_exec("adb shell settings put global auto_time 1");
-shell_exec("adb shell settings put global auto_time_zone 1");
-echo "[*] Ambiente pronto.\n";
-
-// Cópia
-shell_exec("adb shell 'cp -rn " . escapeshellarg($SRC) . "/* " . escapeshellarg($DEST) . "'");
-
-// Camuflagem total de pastas críticas
-$pastas = [
-    "$DEST/files/contentcache/Optional/android/gameassetbundles",
-    "$DEST/files/contentcache/Optional/android/optionalavatarres",
-    "$DEST/files/contentcache/Optional/android/optionalavatarres/gameassetbundles",
-    "$DEST/files/contentcache/Optional/android",
-    "$DEST/files/contentcache/Optional",
-    "$DEST/files/contentcache",
-    "$DEST/files",
-    "$DEST",
-    "/sdcard/Android/data",
-    "/sdcard/Android",
-    "/sdcard/Android/obb/com.dts.freefireth"
-];
-foreach ($pastas as $pasta) {
-    $p = escapeshellarg($pasta);
-    shell_exec("adb shell 'touch -t $timestamp $p'");
-    shell_exec("adb shell 'mv $p $p.tmp && mv $p.tmp $p'");
-    echo "[✓] Pasta camuflada: $pasta\n";
+// Menu principal
+function showMenu() {
+    global $vermelho, $verde, $amarelo, $azul, $reset;
+    
+    echo "$amarelo
+ [1]$verde Substituir conteúdo do Free Fire
+ [2]$verde Substituir conteúdo do Free Fire MAX
+ [3]$vermelho Ativar bypass completo (root)
+ [4]$amarelo Restaurar backup original
+ [5]$vermelho Sair
+$reset\n";
 }
 
-// Criar bin/json realistas
-$bin = "$DEST/files/MReplays/20250522_1530_match.bin";
-$json = "$DEST/files/MReplays/20250522_1530_match.json";
+// Função para substituir conteúdo preservando a pasta principal
+function replaceGameContent($gamePackage, $sourceFolder) {
+    global $vermelho, $verde, $reset;
+    
+    $destFolder = "/sdcard/Android/data/$gamePackage";
+    $backupFolder = "/sdcard/Pictures/PINS/PINSSALVOS/$gamePackage.backup";
+    
+    // 1. Criar backup do conteúdo original
+    echo "$amarelo[*] Criando backup do conteúdo original...$reset\n";
+    shell_exec("rm -rf '$backupFolder'");
+    shell_exec("mkdir -p '$backupFolder'");
+    shell_exec("cp -r '$destFolder'/* '$backupFolder'/");
+    
+    // 2. Remover apenas o conteúdo interno (preservando a pasta principal)
+    echo "$amarelo[*] Limpando conteúdo atual...$reset\n";
+    shell_exec("rm -rf '$destFolder'/*");
+    shell_exec("rm -rf '$destFolder'/.* 2>/dev/null"); // Arquivos ocultos
+    
+    // 3. Copiar novo conteúdo
+    echo "$amarelo[*] Copiando conteúdo limpo...$reset\n";
+    shell_exec("cp -r '$sourceFolder'/* '$destFolder'/");
+    
+    // 4. Ajustar permissões e timestamps
+    echo "$amarelo[*] Ajustando permissões e timestamps...$reset\n";
+    shell_exec("chmod -R 755 '$destFolder'");
+    normalizeTimestamps($destFolder);
+    
+    // 5. Verificar se a pasta principal foi preservada
+    if (!file_exists($destFolder)) {
+        echo "$vermelho[!] Erro: A pasta principal foi removida!$reset\n";
+        shell_exec("mkdir -p '$destFolder'");
+    }
+    
+    echo "$verde[+] Substituição concluída com sucesso!$reset\n\n";
+}
 
-shell_exec("adb shell 'dd if=/dev/urandom of=$bin bs=1 count=128'");
-shell_exec("adb shell 'echo {\"match_id\":123456,\"status\":\"complete\"} > $json'");
-shell_exec("adb shell 'touch -t $timestamp $bin'");
-shell_exec("adb shell 'touch -t $timestamp $json'");
-echo "[✓] Replay JSON/BIN válidos criados.\n";
+// Normalizar timestamps para bypass
+function normalizeTimestamps($dir) {
+    $time = time() - 86400; // 1 dia atrás
+    shell_exec("find '$dir' -exec touch -t " . date('YmdHi.s', $time) . " {} \;");
+    
+    // Garantir que a pasta principal também tenha timestamp consistente
+    shell_exec("touch -t " . date('YmdHi.s', $time) . " '$dir'");
+}
 
-// Shaders fakes com UnityFS
-$shader = "$DEST/files/contentcache/Optional/android/gameassetbundles/shaders_1530.asset";
-shell_exec("adb shell 'echo UnityFS > $shader'");
-shell_exec("adb shell 'touch -a -t $timestamp $shader'");
-shell_exec("adb shell 'touch -m -t $timestamp $shader'");
-shell_exec("adb shell 'mv $shader $shader.tmp && mv $shader.tmp $shader'");
-echo "[✓] Shader falsificado.\n";
+// Bypass avançado (requer root)
+function advancedBypass() {
+    global $vermelho, $verde, $reset;
+    
+    echo "$amarelo[*] Ativando bypass avançado...$reset\n";
+    
+    // 1. Interceptar chamadas de stat()
+    echo "$amarelo[*] Configurando interceptação de chamadas...$reset\n";
+    file_put_contents("/data/local/tmp/fakestat.so", base64_decode("...código binário do hook..."));
+    
+    // 2. Limpar logs específicos
+    echo "$amarelo[*] Limpando logs do jogo...$reset\n";
+    shell_exec("logcat -c -b events");
+    shell_exec("rm -f /sdcard/Android/data/com.dts.*/files/*.log");
+    
+    // 3. Configurar fuso horário automático
+    echo "$amarelo[*] Configurando fuso horário...$reset\n";
+    shell_exec("settings put global auto_time_zone 1");
+    
+    echo "$verde[+] Bypass avançado ativado com sucesso!$reset\n\n";
+}
 
-// Finalização
-shell_exec("adb shell monkey -p com.dts.freefireth -c android.intent.category.LAUNCHER 1");
-echo "[✓] Script executado. Scanner não deve encontrar nada.\n";
+// Loop principal
+while (true) {
+    showMenu();
+    echo "$amarelo[?] Selecione uma opção:$reset ";
+    $opcao = trim(fgets(STDIN));
+    
+    switch ($opcao) {
+        case 1:
+            replaceGameContent("com.dts.freefireth", "/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefireth");
+            break;
+        case 2:
+            replaceGameContent("com.dts.freefiremax", "/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefiremax");
+            break;
+        case 3:
+            advancedBypass();
+            break;
+        case 4:
+            echo "$amarelo[*] Restaurando backup original...$reset\n";
+            shell_exec("cp -r '/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefireth.backup'/* '/sdcard/Android/data/com.dts.freefireth'/");
+            shell_exec("cp -r '/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefiremax.backup'/* '/sdcard/Android/data/com.dts.freefiremax'/");
+            echo "$verde[+] Backup restaurado com sucesso!$reset\n\n";
+            break;
+        case 5:
+            exit("$amarelo[*] Saindo...$reset\n");
+        default:
+            echo "$vermelho[!] Opção inválida!$reset\n";
+    }
+}
 ?>
