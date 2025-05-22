@@ -10,6 +10,12 @@ define('YELLOW', "\033[93m");
 define('BLUE', "\033[94m");
 define('RESET', "\033[0m");
 
+// Caminhos base
+define('BASE_PATH', '/storage/emulated/0');
+define('BACKUP_PATH', BASE_PATH . '/FF_BACKUP');
+define('CLEAN_FILES_PATH', BASE_PATH . '/Pictures/PINS/PINSSALVOS');
+define('GAME_PATH', BASE_PATH . '/Android/data');
+
 // Banner
 function showBanner() {
     echo BLUE . "
@@ -18,7 +24,7 @@ function showBanner() {
  | | | | |_   |  _ \| | | |
  | |_| |  _|  | |_) | |_| |
   \___/|_|    |____/ \___/ 
-
+                           
 " . RESET . "\n";
 }
 
@@ -40,54 +46,61 @@ function mainMenu() {
  [3] Restaurar Backup
  [4] Sair
 " . RESET;
-
+    
     echo GREEN . "\n [?] Selecione: " . RESET;
     $option = trim(fgets(STDIN));
-
+    
     return $option;
 }
 
 // Executar bypass
 function runBypass($game) {
     checkADB();
-
+    
+    $gamePath = GAME_PATH . "/$game";
+    $cleanPath = CLEAN_FILES_PATH . "/$game";
+    $backupPath = BACKUP_PATH . "/$game";
+    
     echo YELLOW . "\n [+] Iniciando bypass para $game..." . RESET;
-
+    
     // 1. Backup
     echo YELLOW . "\n [*] Criando backup..." . RESET;
-    shell_exec("adb shell mkdir -p /sdcard/FF_BACKUP");
-    shell_exec("adb shell cp -r /sdcard/Android/data/$game /sdcard/FF_BACKUP/");
-
+    shell_exec("adb shell mkdir -p \"$backupPath\"");
+    shell_exec("adb shell cp -r \"$gamePath\" \"$backupPath\"");
+    
     // 2. Limpar dados
     echo YELLOW . "\n [*] Limpando dados..." . RESET;
-    shell_exec("adb shell rm -rf /sdcard/Android/data/$game/*");
-
+    shell_exec("adb shell rm -rf \"$gamePath\"/*");
+    
     // 3. Restaurar dados limpos
     echo YELLOW . "\n [*] Restaurando dados limpos..." . RESET;
-    shell_exec("adb shell cp -r /sdcard/Pictures/PINS/PINSSALVOS/$game/* /sdcard/Android/data/$game/");
-
+    shell_exec("adb shell cp -r \"$cleanPath\"/* \"$gamePath\"/");
+    
     // 4. Ajustar timestamps
     echo YELLOW . "\n [*] Ajustando timestamps..." . RESET;
     $time = date('YmdHi.s', time() - 86400);
-    shell_exec("adb shell 'find /sdcard/Android/data/$game -exec touch -t $time {} +'");
-
+    shell_exec("adb shell find \"$gamePath\" -exec touch -t $time {} \;");
+    
     echo GREEN . "\n [+] Bypass concluído com sucesso!\n" . RESET;
 }
 
 // Restaurar backup
 function restoreBackup($game) {
     checkADB();
-
+    
+    $gamePath = GAME_PATH . "/$game";
+    $backupPath = BACKUP_PATH . "/$game";
+    
     echo YELLOW . "\n [+] Restaurando $game..." . RESET;
-    shell_exec("adb shell rm -rf /sdcard/Android/data/$game");
-    shell_exec("adb shell cp -r /sdcard/FF_BACKUP/$game /sdcard/Android/data/");
+    shell_exec("adb shell rm -rf \"$gamePath\"");
+    shell_exec("adb shell cp -r \"$backupPath\" \"$gamePath\"");
     echo GREEN . "\n [+] Restauração concluída!\n" . RESET;
 }
 
 // Loop principal
 while (true) {
     $option = mainMenu();
-
+    
     switch ($option) {
         case '1':
             runBypass('com.dts.freefireth');
@@ -99,18 +112,6 @@ while (true) {
             echo YELLOW . "\n [1] Free Fire\n [2] Free Fire MAX\n [3] Ambos\n" . RESET;
             echo GREEN . " [?] Escolha: " . RESET;
             $restoreOpt = trim(fgets(STDIN));
-
+            
             if ($restoreOpt == '1' || $restoreOpt == '3') {
-                restoreBackup('com.dts.freefireth');
-            }
-            if ($restoreOpt == '2' || $restoreOpt == '3') {
-                restoreBackup('com.dts.freefiremax');
-            }
-            break;
-        case '4':
-            exit(GREEN . "\n [+] Saindo...\n" . RESET);
-        default:
-            echo RED . "\n [!] Opção inválida!\n" . RESET;
-    }
-}
-?>
+                restoreBackup('com.dts
