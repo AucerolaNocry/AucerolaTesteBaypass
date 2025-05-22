@@ -1,48 +1,41 @@
 <?php
-echo "====== KELLERSS BYPASS: CLONE CAMUFLADO & METADADOS VALIDOS ======\n";
+echo "====== Bypass Avançado KellerSS ======\n";
 
-$SRC = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-$DEST = "/storage/emulated/0/Android/data/com.dts.freefireth";
+// === CONFIGURAÇÕES MANUAIS (ADAPTE CONFORME TESTE) ===
+$data_partida = "20250522";   // Data da partida
+$hora_partida = "160500";     // Hora da partida
+$timestamp_anterior = "20250522"; // Para camuflagem como se fosse ANTES da partida
+$hora_camuflagem = "155900";      // Um minuto antes
 
-// Captura a hora de instalação original do FF
-echo "[*] Coletando data de instalação...\n";
-$instalacao = shell_exec("adb shell dumpsys package com.dts.freefireth | grep -i firstInstallTime");
-preg_match("/firstInstallTime=([\d-]+\s[\d:]+)/", $instalacao, $match);
-$dataFormatada = $match[1] ?? date("Y-m-d H:i:s");
-$timestamp = date("YmdHi", strtotime($dataFormatada));
+// === PASTAS MONITORADAS ===
+$replay = "/sdcard/Android/data/com.dts.freefireth/files/MReplays/replay_fake.bin";
+$shaders = "/sdcard/Android/data/com.dts.freefireth/files/contentcache/optional/android/gameassetbundles/";
+$shader_mod = $shaders . "optionalab_117.MxbzLYb~2FPb5D0TBn4vPVGP7PY9b=3D";
 
-// Zera o logcat
-echo "[*] Limpando logcat...\n";
+// === PASSO 1: Limpar histórico e timezone ===
 shell_exec("adb logcat -c");
+shell_exec("adb shell settings put global auto_time 1");
+shell_exec("adb shell settings put global auto_time_zone 1");
+echo "[+] Logcat limpo e timezone ativado.\n";
 
-// Remove a pasta original
-echo "[*] Apagando estrutura original...\n";
-shell_exec("adb shell rm -rf " . escapeshellarg($DEST));
+// === PASSO 2: Injetar replay falso ===
+shell_exec("adb shell 'echo replay_fake > $replay'");
+shell_exec("adb shell 'touch -t {$timestamp_anterior}{$hora_camuflagem} $replay'");
+echo "[+] Replay falso criado com timestamp antes da partida.\n";
 
-// Copia o novo conteúdo
-echo "[*] Copiando pasta camuflada...\n";
-shell_exec("adb shell 'cd " . dirname($SRC) . " && cp -rf " . basename($SRC) . " " . dirname($DEST) . "'");
+// === PASSO 3: Camuflar pasta de shaders ===
+shell_exec("adb shell 'touch -t {$timestamp_anterior}{$hora_camuflagem} $shader_mod'");
+shell_exec("adb shell 'mv $shader_mod {$shader_mod}.tmp && mv {$shader_mod}.tmp $shader_mod'");
+echo "[+] Shader camuflado com timestamps válidos.\n";
 
-// Camufla todas as datas para bater com a instalação
-echo "[*] Aplicando timestamps iguais à instalação...\n";
-$pastas = [
-    "$DEST/files",
-    "$DEST/files/contentcache",
-    "$DEST/files/contentcache/optional/android/gameassetbundles",
-    "$DEST/files/ShaderStripSettings",
-    "$DEST/files/ffrtc_log.txt"
-];
+// === PASSO 4: Atualizar CHANGE, ACCESS, MODIFY ===
+shell_exec("adb shell find $shaders -exec touch -t {$timestamp_anterior}{$hora_camuflagem} {} \\;");
+shell_exec("adb shell ls -lR $shaders > /dev/null");
+echo "[+] Pasta de shaders completamente sincronizada.\n";
 
-foreach ($pastas as $alvo) {
-    $esc = escapeshellarg($alvo);
-    shell_exec("adb shell 'touch -t {$timestamp}.00 $esc && mv $esc {$esc}.tmp && mv {$esc}.tmp $esc'");
-    echo "[✓] Camuflado: $alvo\n";
-}
-
-// Simula uso legítimo
-echo "[*] Simulando acesso com comandos neutros...\n";
-shell_exec("adb shell ls -lR " . escapeshellarg($DEST) . " > /dev/null");
+// === PASSO 5: Simular execução do jogo ===
 shell_exec("adb shell monkey -p com.dts.freefireth -c android.intent.category.LAUNCHER 1");
+echo "[+] Simulado acesso legítimo ao jogo.\n";
 
-echo "[✓] Finalizado: Metadados e uso aparentam legítimos.\n";
+echo "[✓] Ambiente forjado como legítimo — KellerSS não deve detectar alteração.\n";
 ?>
