@@ -16,16 +16,6 @@ echo "$azul
  |____/|_|\___|\___|_|\_\ |_____/|_| |_| |_|\__\__,_|_|_|
 $reset\n\n";
 
-// Verificar se ADB está disponível
-function checkADB() {
-    global $vermelho, $reset;
-    $adbCheck = shell_exec("adb devices 2>&1");
-    if (strpos($adbCheck, "daemon started successfully") === false && 
-        strpos($adbCheck, "List of devices attached") === false) {
-        die("$vermelho[!] ADB não encontrado ou não configurado corretamente!$reset\n");
-    }
-}
-
 // Menu principal
 function showMenu() {
     global $vermelho, $verde, $amarelo, $azul, $reset;
@@ -36,6 +26,16 @@ function showMenu() {
  [3]$amarelo Restaurar original via ADB
  [4]$vermelho Sair
 $reset\n";
+}
+
+// Verificar se ADB está disponível
+function checkADB() {
+    global $vermelho, $reset;
+    $adbCheck = shell_exec("adb devices 2>&1");
+    if (strpos($adbCheck, "daemon started successfully") === false && 
+        strpos($adbCheck, "List of devices attached") === false) {
+        die("$vermelho[!] ADB não encontrado ou não configurado corretamente!$reset\n");
+    }
 }
 
 // Função principal de bypass via ADB
