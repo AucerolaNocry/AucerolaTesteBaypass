@@ -8,7 +8,7 @@ $hora_simulada   = "1558";
 $tempo_final     = ".00";
 $data_full       = $data_referencia . $hora_simulada . $tempo_final;
 
-$SRC  = "/storage/emulated/0/Pictures/TESTE/PINSSALVOS/com.dts.freefireth";
+$SRC  = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
 $DEST = "/sdcard/Android/data/com.dts.freefireth";
 
 // Etapa 1: Preparar ambiente
