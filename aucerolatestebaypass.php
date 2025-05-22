@@ -1,41 +1,43 @@
 <?php
-echo "====== Bypass Avançado KellerSS ======\n";
+echo "====== ALTERAÇÃO CAMUFLADA ANTI-KELLERSS (SEM DETECÇÃO) ======\n";
 
-// === CONFIGURAÇÕES MANUAIS (ADAPTE CONFORME TESTE) ===
-$data_partida = "20250522";   // Data da partida
-$hora_partida = "160500";     // Hora da partida
-$timestamp_anterior = "20250522"; // Para camuflagem como se fosse ANTES da partida
-$hora_camuflagem = "155900";      // Um minuto antes
+// === CONFIGURAÇÃO ===
+$data_referencia = "20250522";      // Mesmo dia da partida
+$hora_simulada   = "155800";        // Antes da hora real da partida
+$DEST = "/sdcard/Android/data/com.dts.freefireth";
 
-// === PASTAS MONITORADAS ===
-$replay = "/sdcard/Android/data/com.dts.freefireth/files/MReplays/replay_fake.bin";
-$shaders = "/sdcard/Android/data/com.dts.freefireth/files/contentcache/optional/android/gameassetbundles/";
-$shader_mod = $shaders . "optionalab_117.MxbzLYb~2FPb5D0TBn4vPVGP7PY9b=3D";
-
-// === PASSO 1: Limpar histórico e timezone ===
+// === 1. REINÍCIO DO ADB E LIMPEZA DE LOGS ===
+shell_exec("adb start-server");
 shell_exec("adb logcat -c");
 shell_exec("adb shell settings put global auto_time 1");
 shell_exec("adb shell settings put global auto_time_zone 1");
-echo "[+] Logcat limpo e timezone ativado.\n";
+echo "[*] Ambiente limpo e sincronizado com horário automático.\n";
 
-// === PASSO 2: Injetar replay falso ===
-shell_exec("adb shell 'echo replay_fake > $replay'");
-shell_exec("adb shell 'touch -t {$timestamp_anterior}{$hora_camuflagem} $replay'");
-echo "[+] Replay falso criado com timestamp antes da partida.\n";
+// === 2. CRIAÇÃO/ALTERAÇÃO DA PASTA (SIMULADA) ===
+$arquivos = [
+    "$DEST/files/ShaderStripSettings",
+    "$DEST/files/contentcache/optional/android/gameassetbundles/optionalab_117.MxbzLYb~2FPb5D0TBn4vPVGP7PY9b=3D",
+    "$DEST/files/ffrtc_log.txt"
+];
 
-// === PASSO 3: Camuflar pasta de shaders ===
-shell_exec("adb shell 'touch -t {$timestamp_anterior}{$hora_camuflagem} $shader_mod'");
-shell_exec("adb shell 'mv $shader_mod {$shader_mod}.tmp && mv {$shader_mod}.tmp $shader_mod'");
-echo "[+] Shader camuflado com timestamps válidos.\n";
+foreach ($arquivos as $arquivo) {
+    $esc = escapeshellarg($arquivo);
+    echo "[*] Camuflando: $arquivo\n";
+    shell_exec("adb shell 'touch -t {$data_referencia}{$hora_simulada} $esc'");
+    shell_exec("adb shell 'mv $esc ${esc}.tmp && mv ${esc}.tmp $esc'");
+}
 
-// === PASSO 4: Atualizar CHANGE, ACCESS, MODIFY ===
-shell_exec("adb shell find $shaders -exec touch -t {$timestamp_anterior}{$hora_camuflagem} {} \\;");
-shell_exec("adb shell ls -lR $shaders > /dev/null");
-echo "[+] Pasta de shaders completamente sincronizada.\n";
+// === 3. FORÇA access, modify, change ===
+shell_exec("adb shell find $DEST -exec touch -t {$data_referencia}{$hora_simulada} {} \\;");
+shell_exec("adb shell ls -lR $DEST > /dev/null");
 
-// === PASSO 5: Simular execução do jogo ===
+// === 4. INJEÇÃO DE ARQUIVO REPLAY (COM .bin) ===
+$replay = "$DEST/files/MReplays/replay_fake.bin";
+shell_exec("adb shell 'echo bin_data > $replay'");
+shell_exec("adb shell 'touch -t {$data_referencia}{$hora_simulada} $replay'");
+echo "[+] Replay .bin legítimo injetado com tempo falso válido.\n";
+
+// === 5. SIMULAÇÃO DE EXECUÇÃO DO JOGO ===
 shell_exec("adb shell monkey -p com.dts.freefireth -c android.intent.category.LAUNCHER 1");
-echo "[+] Simulado acesso legítimo ao jogo.\n";
-
-echo "[✓] Ambiente forjado como legítimo — KellerSS não deve detectar alteração.\n";
+echo "[✓] Bypass concluído. Alterações feitas sem serem detectadas pelo KellerSS.\n";
 ?>
