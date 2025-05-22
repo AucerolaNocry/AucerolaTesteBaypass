@@ -1,70 +1,129 @@
 <?php
-// Configurações e cores
+// Configurações básicas
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-define('R', "\033[91m");
-define('G', "\033[92m");
-define('Y', "\033[93m");
-define('B', "\033[94m");
-define('RST', "\033[0m");
 
-// Caminhos
-$GAME = "com.dts.freefireth";
-$DEST = "/sdcard/Android/data/$GAME";
-$SRC = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/$GAME";
-$FAKE_NAME = date("Ymd_His");
+// Cores para terminal
+define('RED', "\033[91m");
+define('GREEN', "\033[92m");
+define('YELLOW', "\033[93m");
+define('BLUE', "\033[94m");
+define('RESET', "\033[0m");
+
+// Caminhos base
+define('BASE_PATH', '/storage/emulated/0');
+define('BACKUP_PATH', BASE_PATH . '/FF_BACKUP');
+define('CLEAN_FILES_PATH', BASE_PATH . '/Pictures/PINS/PINSSALVOS');
+define('GAME_PATH', BASE_PATH . '/Android/data');
 
 // Banner
-system("clear");
-echo B . "\n====== BYPASS FF ANTI-KELLERSS ======\n" . RST;
-shell_exec("adb start-server");
+function showBanner() {
+    echo BLUE . "
+   ___  _____  ____  _   _ 
+  / _ \|  ___|| __ )| | | |
+ | | | | |_   |  _ \| | | |
+ | |_| |  _|  | |_) | |_| |
+  \___/|_|    |____/ \___/ 
 
-// Etapa 1: Backup invisível
-shell_exec("adb shell cp -rn '$DEST' /sdcard/FF_BACKUP_$GAME");
-echo Y . "[*] Backup invisível criado\n" . RST;
-
-// Etapa 2: Injeta sem deletar
-shell_exec("adb shell 'cp -rf $SRC/* $DEST/'");
-echo G . "[+] Dados injetados sem apagar pastas\n" . RST;
-
-// Etapa 3: Camuflagem avançada dos tempos (diferenças sutis entre A/M/C)
-$files = [
-    "$DEST/files/ShaderStripSettings",
-    "$DEST/files/contentcache/optional/android/gameassetbundles/optionalab_117.shader",
-    "$DEST/files/ffrtc_log.txt"
-];
-
-foreach ($files as $f) {
-    $f_esc = escapeshellarg($f);
-    shell_exec("adb shell 'touch -a -t 202505220930.00 $f_esc'"); // Access
-    shell_exec("adb shell 'touch -m -t 202505220931.00 $f_esc'"); // Modify
-    shell_exec("adb shell mv $f_esc $f_esc.tmp && mv $f_esc.tmp $f_esc"); // Change
-    echo G . "[+] A/M/C camuflados: $f\n" . RST;
+" . RESET . "\n";
 }
 
-// Etapa 4: Replay fictício realista
-$replay = "$DEST/files/MReplays/{$FAKE_NAME}_camuflado.bin";
-shell_exec("adb shell 'echo legitdata > $replay'");
-shell_exec("adb shell 'touch -t 202505220930.00 $replay'");
-echo Y . "[*] Replay simulado injetado\n" . RST;
-
-// Etapa 5: Simula uso real
-shell_exec("adb shell monkey -p $GAME -c android.intent.category.LAUNCHER 1");
-shell_exec("adb logcat -c");
-echo G . "[+] Simulação de uso finalizada\n" . RST;
-
-// Etapa 6: Atualiza pastas de forma indireta
-$pastas = [
-    "$DEST",
-    "$DEST/files",
-    "$DEST/files/contentcache",
-    "$DEST/files/contentcache/optional",
-    "$DEST/files/contentcache/optional/android",
-];
-foreach ($pastas as $p) {
-    shell_exec("adb shell 'echo update > $p/.log && rm $p/.log'");
+// Verificar ADB
+function checkADB() {
+    $output = shell_exec("adb devices 2>&1");
+    if (strpos($output, "device") === false) {
+        die(RED . "[!] Conecte um dispositivo via ADB primeiro!\n" . RESET);
+    }
+    return true;
 }
-echo G . "[+] Pastas sincronizadas com método stealth\n" . RST;
 
-echo B . "\n[✓] Processo finalizado. Anti-Scanner completo aplicado.\n" . RST;
+// Menu principal
+function mainMenu() {
+    showBanner();
+    echo YELLOW . "
+ [1] Bypass Free Fire
+ [2] Bypass Free Fire MAX
+ [3] Restaurar Backup
+ [4] Sair
+" . RESET;
+
+    echo GREEN . "\n [?] Selecione: " . RESET;
+    $option = trim(fgets(STDIN));
+
+    return $option;
+}
+
+// Executar bypass
+function runBypass($game) {
+    checkADB();
+
+    $gamePath = GAME_PATH . "/$game";
+    $cleanPath = CLEAN_FILES_PATH . "/$game";
+    $backupPath = BACKUP_PATH . "/$game";
+
+    echo YELLOW . "\n [+] Iniciando bypass para $game..." . RESET;
+
+    // 1. Backup
+    echo YELLOW . "\n [*] Criando backup..." . RESET;
+    shell_exec("adb shell mkdir -p '$backupPath'");
+    shell_exec("adb shell cp -r '$gamePath' '$backupPath'");
+
+    // 2. Limpar dados
+    echo YELLOW . "\n [*] Limpando dados..." . RESET;
+    shell_exec("adb shell rm -rf '$gamePath/*'");
+
+    // 3. Restaurar dados limpos
+    echo YELLOW . "\n [*] Restaurando dados limpos..." . RESET;
+    shell_exec("adb shell cp -r '$cleanPath/*' '$gamePath/'");
+
+    // 4. Ajustar timestamps
+    echo YELLOW . "\n [*] Ajustando timestamps..." . RESET;
+    $time = date('YmdHi.s', time() - 86400);
+    shell_exec("adb shell 'find $gamePath -exec touch -t $time {} +'");
+
+    echo GREEN . "\n [+] Bypass concluído com sucesso!\n" . RESET;
+}
+
+// Restaurar backup
+function restoreBackup($game) {
+    checkADB();
+
+    $gamePath = GAME_PATH . "/$game";
+    $backupPath = BACKUP_PATH . "/$game";
+
+    echo YELLOW . "\n [+] Restaurando $game..." . RESET;
+    shell_exec("adb shell rm -rf '$gamePath'");
+    shell_exec("adb shell cp -r '$backupPath' '$gamePath'");
+    echo GREEN . "\n [+] Restauração concluída!\n" . RESET;
+}
+
+// Loop principal
+while (true) {
+    $option = mainMenu();
+
+    switch ($option) {
+        case '1':
+            runBypass('com.dts.freefireth');
+            break;
+        case '2':
+            runBypass('com.dts.freefiremax');
+            break;
+        case '3':
+            echo YELLOW . "\n [1] Free Fire\n [2] Free Fire MAX\n [3] Ambos\n" . RESET;
+            echo GREEN . " [?] Escolha: " . RESET;
+            $restoreOpt = trim(fgets(STDIN));
+
+            if ($restoreOpt == '1' || $restoreOpt == '3') {
+                restoreBackup('com.dts.freefireth');
+            }
+            if ($restoreOpt == '2' || $restoreOpt == '3') {
+                restoreBackup('com.dts.freefiremax');
+            }
+            break;
+        case '4':
+            exit(GREEN . "\n [+] Saindo...\n" . RESET);
+        default:
+            echo RED . "\n [!] Opção inválida!\n" . RESET;
+    }
+}
 ?>
