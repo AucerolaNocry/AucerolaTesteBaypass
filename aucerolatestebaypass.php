@@ -16,87 +16,85 @@ echo "$azul
  |____/|_|\___|\___|_|\_\ |_____/|_| |_| |_|\__\__,_|_|_|
 $reset\n\n";
 
+// Verificar se ADB está disponível
+function checkADB() {
+    global $vermelho, $reset;
+    $adbCheck = shell_exec("adb devices 2>&1");
+    if (strpos($adbCheck, "daemon started successfully") === false && 
+        strpos($adbCheck, "List of devices attached") === false) {
+        die("$vermelho[!] ADB não encontrado ou não configurado corretamente!$reset\n");
+    }
+}
+
 // Menu principal
 function showMenu() {
     global $vermelho, $verde, $amarelo, $azul, $reset;
     
     echo "$amarelo
- [1]$verde Substituir conteúdo do Free Fire
- [2]$verde Substituir conteúdo do Free Fire MAX
- [3]$vermelho Ativar bypass completo (root)
- [4]$amarelo Restaurar backup original
- [5]$vermelho Sair
+ [1]$verde Bypass Free Fire via ADB
+ [2]$verde Bypass Free Fire MAX via ADB
+ [3]$amarelo Restaurar original via ADB
+ [4]$vermelho Sair
 $reset\n";
 }
 
-// Função para substituir conteúdo preservando a pasta principal
-function replaceGameContent($gamePackage, $sourceFolder) {
-    global $vermelho, $verde, $reset;
+// Função principal de bypass via ADB
+function adbBypass($gamePackage) {
+    global $vermelho, $verde, $amarelo, $reset;
+    
+    $sourceFolder = "/sdcard/Pictures/PINS/PINSSALVOS/$gamePackage";
+    $destFolder = "/sdcard/Android/data/$gamePackage";
+    $backupFolder = "/sdcard/Pictures/PINS/PINSSALVOS/$gamePackage.backup";
+    
+    echo "$amarelo[*] Verificando conexão ADB...$reset\n";
+    checkADB();
+    
+    // 1. Criar backup via ADB
+    echo "$amarelo[*] Criando backup via ADB...$reset\n";
+    shell_exec("adb shell rm -rf \"$backupFolder\"");
+    shell_exec("adb shell mkdir -p \"$backupFolder\"");
+    shell_exec("adb shell cp -r \"$destFolder\"/* \"$backupFolder\"/");
+    
+    // 2. Limpar conteúdo atual via ADB
+    echo "$amarelo[*] Limpando conteúdo atual via ADB...$reset\n";
+    shell_exec("adb shell rm -rf \"$destFolder\"/*");
+    shell_exec("adb shell rm -rf \"$destFolder\"/.* 2>/dev/null");
+    
+    // 3. Copiar conteúdo limpo via ADB
+    echo "$amarelo[*] Copiando conteúdo limpo via ADB...$reset\n";
+    shell_exec("adb shell cp -r \"$sourceFolder\"/* \"$destFolder\"/");
+    
+    // 4. Normalizar timestamps via ADB
+    echo "$amarelo[*] Normalizando timestamps via ADB...$reset\n";
+    $currentTime = time() - 86400; // 1 dia atrás
+    $timeFormat = date('YmdHi.s', $currentTime);
+    
+    shell_exec("adb shell find \"$destFolder\" -exec touch -t $timeFormat {} \;");
+    shell_exec("adb shell touch -t $timeFormat \"$destFolder\"");
+    
+    // 5. Limpar logs via ADB
+    echo "$amarelo[*] Limpando logs do jogo via ADB...$reset\n";
+    shell_exec("adb logcat -c");
+    
+    echo "$verde[+] Bypass via ADB concluído com sucesso!$reset\n\n";
+}
+
+// Função para restaurar via ADB
+function adbRestore($gamePackage) {
+    global $verde, $amarelo, $reset;
     
     $destFolder = "/sdcard/Android/data/$gamePackage";
     $backupFolder = "/sdcard/Pictures/PINS/PINSSALVOS/$gamePackage.backup";
     
-    // 1. Criar backup do conteúdo original
-    echo "$amarelo[*] Criando backup do conteúdo original...$reset\n";
-    shell_exec("rm -rf '$backupFolder'");
-    shell_exec("mkdir -p '$backupFolder'");
-    shell_exec("cp -r '$destFolder'/* '$backupFolder'/");
+    echo "$amarelo[*] Restaurando backup via ADB...$reset\n";
+    shell_exec("adb shell rm -rf \"$destFolder\"/*");
+    shell_exec("adb shell cp -r \"$backupFolder\"/* \"$destFolder\"/");
     
-    // 2. Remover apenas o conteúdo interno (preservando a pasta principal)
-    echo "$amarelo[*] Limpando conteúdo atual...$reset\n";
-    shell_exec("rm -rf '$destFolder'/*");
-    shell_exec("rm -rf '$destFolder'/.* 2>/dev/null"); // Arquivos ocultos
-    
-    // 3. Copiar novo conteúdo
-    echo "$amarelo[*] Copiando conteúdo limpo...$reset\n";
-    shell_exec("cp -r '$sourceFolder'/* '$destFolder'/");
-    
-    // 4. Ajustar permissões e timestamps
-    echo "$amarelo[*] Ajustando permissões e timestamps...$reset\n";
-    shell_exec("chmod -R 755 '$destFolder'");
-    normalizeTimestamps($destFolder);
-    
-    // 5. Verificar se a pasta principal foi preservada
-    if (!file_exists($destFolder)) {
-        echo "$vermelho[!] Erro: A pasta principal foi removida!$reset\n";
-        shell_exec("mkdir -p '$destFolder'");
-    }
-    
-    echo "$verde[+] Substituição concluída com sucesso!$reset\n\n";
-}
-
-// Normalizar timestamps para bypass
-function normalizeTimestamps($dir) {
-    $time = time() - 86400; // 1 dia atrás
-    shell_exec("find '$dir' -exec touch -t " . date('YmdHi.s', $time) . " {} \;");
-    
-    // Garantir que a pasta principal também tenha timestamp consistente
-    shell_exec("touch -t " . date('YmdHi.s', $time) . " '$dir'");
-}
-
-// Bypass avançado (requer root)
-function advancedBypass() {
-    global $vermelho, $verde, $reset;
-    
-    echo "$amarelo[*] Ativando bypass avançado...$reset\n";
-    
-    // 1. Interceptar chamadas de stat()
-    echo "$amarelo[*] Configurando interceptação de chamadas...$reset\n";
-    file_put_contents("/data/local/tmp/fakestat.so", base64_decode("...código binário do hook..."));
-    
-    // 2. Limpar logs específicos
-    echo "$amarelo[*] Limpando logs do jogo...$reset\n";
-    shell_exec("logcat -c -b events");
-    shell_exec("rm -f /sdcard/Android/data/com.dts.*/files/*.log");
-    
-    // 3. Configurar fuso horário automático
-    echo "$amarelo[*] Configurando fuso horário...$reset\n";
-    shell_exec("settings put global auto_time_zone 1");
-    
-    echo "$verde[+] Bypass avançado ativado com sucesso!$reset\n\n";
+    echo "$verde[+] Restauração via ADB concluída!$reset\n\n";
 }
 
 // Loop principal
+checkADB();
 while (true) {
     showMenu();
     echo "$amarelo[?] Selecione uma opção:$reset ";
@@ -104,21 +102,28 @@ while (true) {
     
     switch ($opcao) {
         case 1:
-            replaceGameContent("com.dts.freefireth", "/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefireth");
+            adbBypass("com.dts.freefireth");
             break;
         case 2:
-            replaceGameContent("com.dts.freefiremax", "/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefiremax");
+            adbBypass("com.dts.freefiremax");
             break;
         case 3:
-            advancedBypass();
+            echo "$amarelo
+ [1] Restaurar Free Fire
+ [2] Restaurar Free Fire MAX
+ [3] Restaurar ambos
+$reset";
+            echo "$amarelo[?] Escolha:$reset ";
+            $restoreOpt = trim(fgets(STDIN));
+            
+            if ($restoreOpt == 1 || $restoreOpt == 3) {
+                adbRestore("com.dts.freefireth");
+            }
+            if ($restoreOpt == 2 || $restoreOpt == 3) {
+                adbRestore("com.dts.freefiremax");
+            }
             break;
         case 4:
-            echo "$amarelo[*] Restaurando backup original...$reset\n";
-            shell_exec("cp -r '/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefireth.backup'/* '/sdcard/Android/data/com.dts.freefireth'/");
-            shell_exec("cp -r '/sdcard/Pictures/PINS/PINSSALVOS/com.dts.freefiremax.backup'/* '/sdcard/Android/data/com.dts.freefiremax'/");
-            echo "$verde[+] Backup restaurado com sucesso!$reset\n\n";
-            break;
-        case 5:
             exit("$amarelo[*] Saindo...$reset\n");
         default:
             echo "$vermelho[!] Opção inválida!$reset\n";
