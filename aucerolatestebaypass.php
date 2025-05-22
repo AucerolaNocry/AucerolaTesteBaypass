@@ -1,12 +1,12 @@
 <?php
-echo "====== SUBSTITUIR PASTA E CAMUFLAR TODOS OS ARQUIVOS ======\n";
+echo "====== SUBSTITUIR PASTA E CAMUFLAR PARA BURLAR O KELLERSS ======\n";
 
-// Caminhos
+// Caminhos de origem e destino
 $SRC = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
 $DEST = "/storage/emulated/0/Android/data/com.dts.freefireth";
 $DATA = "20240501";
 
-// Lista de arquivos e pastas para aplicar camuflagem
+// Arquivos a camuflar com seus horários
 $ARQUIVOS = [
     "$DEST/files/ShaderStripSettings" => "0930.00",
     "$DEST/files" => "0945.00",
@@ -18,23 +18,30 @@ $ARQUIVOS = [
     "$DEST/files/ffrtc_log.txt" => "2300.00"
 ];
 
-// 1. Remover pasta antiga
-echo "[*] Removendo pasta antiga...\n";
+// Limpa logs para remover rastros do processo
+echo "[*] Limpando logcat para evitar rastreamento...\n";
+shell_exec("adb logcat -c");
+
+// Remove a pasta antiga
+echo "[*] Removendo pasta alvo original...\n";
 shell_exec("adb shell rm -rf " . escapeshellarg($DEST));
 
-// 2. Copiar nova pasta
-echo "[*] Copiando nova pasta...\n";
-shell_exec("adb shell cp -rf " . escapeshellarg($SRC) . " " . escapeshellarg(dirname($DEST)));
+// Copia nova pasta (usando comando encadeado para evitar timestamps suspeitos)
+echo "[*] Copiando pasta camuflada...\n";
+shell_exec("adb shell 'cd " . dirname($SRC) . " && cp -rf " . basename($SRC) . " " . dirname($DEST) . "'");
 
-// 3. Aplicar camuflagem nos arquivos
-echo "[*] Aplicando camuflagem de data nos arquivos...\n";
+// Aplica camuflagem de data/hora sem deixar rastros diretos
+echo "[*] Camuflando metadados...\n";
 foreach ($ARQUIVOS as $arquivo => $hora) {
-    shell_exec("adb shell touch " . escapeshellarg($arquivo));
-    shell_exec("adb shell touch -t {$DATA}{$hora} " . escapeshellarg($arquivo));
-    shell_exec("adb shell mv " . escapeshellarg($arquivo) . " " . escapeshellarg($arquivo . ".tmp"));
-    shell_exec("adb shell mv " . escapeshellarg($arquivo . ".tmp") . " " . escapeshellarg($arquivo));
+    $esc = escapeshellarg($arquivo);
+    $touch = "adb shell 'touch -t {$DATA}{$hora} $esc && mv $esc {$esc}.tmp && mv {$esc}.tmp $esc'";
+    shell_exec($touch);
     echo "[✓] Camuflado: $arquivo\n";
 }
 
-echo "[✓] Substituição e camuflagem completa concluída.\n";
+// Acesso indireto para forçar atualização de uso real
+echo "[*] Forçando access time legítimo via ls...\n";
+shell_exec("adb shell ls -lR " . escapeshellarg($DEST) . " > /dev/null");
+
+echo "[✓] Processo concluído com camuflagem avançada anti-KellerSS.\n";
 ?>
