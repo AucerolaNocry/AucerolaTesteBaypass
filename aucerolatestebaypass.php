@@ -25,12 +25,13 @@ foreach ($arquivos as $arquivo) {
     $data = $data_referencia . $hora_simulada . $tempo_final;
     $esc = escapeshellarg($arquivo);
     echo "[*] Camuflando: {$arquivo}\n";
-    shell_exec("adb shell 'if [ -f $esc ]; then touch -t $data $esc && mv $esc ${esc}.tmp && mv ${esc}.tmp $esc; fi'");
+    $cmd = "adb shell 'if [ -f {$esc} ]; then touch -t {$data} {$esc} && mv {$esc} {$esc}.tmp && mv {$esc}.tmp {$esc}; fi'";
+    shell_exec($cmd);
 }
 
 // === Etapa 3: Corrigir find
 $data_full = $data_referencia . $hora_simulada . $tempo_final;
-shell_exec("adb shell \"find $DEST -type f -exec touch -t $data_full {} \\\\\\\\\\\\;\"");
+shell_exec("adb shell "find $DEST -type f -exec touch -t $data_full {} \\\\\\;"");
 
 // === Etapa 4: Replay falso
 $replay = "{$DEST}/files/MReplays/replay_fake.bin";
