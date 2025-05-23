@@ -1,55 +1,40 @@
 <?php
 
-$origemLocal = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-$destinoAndroid = "/sdcard/Android/data/com.dts.freefireth";
+$origem = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
+$destino = "/sdcard/Android/data/com.dts.freefireth";
 
-echo "\n\033[1;34m[+] Iniciando Anti-KellerSS otimizado...\033[0m\n";
+echo "\n\033[1;34m[+] Modo Ninja Anti-KellerSS ativado...\033[0m\n";
 
-// Verifica ADB
-$checkAdb = shell_exec("adb shell echo ADB_OK");
-if (strpos($checkAdb, "ADB_OK") === false) {
-    echo "\033[1;31m[!] ADB não está conectado.\033[0m\n";
+// Verificar ADB
+$check = shell_exec("adb shell echo ADB_OK");
+if (strpos($check, "ADB_OK") === false) {
+    echo "\033[1;31m[!] ADB não está conectado. Conecte via Wi-Fi antes.\033[0m\n";
     exit(1);
 }
 
-// Lista todos os arquivos
-$lista = shell_exec("find \"$origemLocal\" -type f");
+// Coletar lista de arquivos na origem
+$lista = shell_exec("adb shell find \"$origem\" -type f");
 $arquivos = explode("\n", trim($lista));
 $total = count($arquivos);
+
 if ($total === 0) {
-    echo "\033[1;31m[!] Nenhum arquivo encontrado na pasta limpa.\033[0m\n";
+    echo "\033[1;31m[!] Nenhum arquivo encontrado para copiar.\033[0m\n";
     exit(1);
 }
 
-// Substituição otimizada com barra de progresso
-echo "\033[1;36m[*] Substituindo arquivos: \033[0m";
-$contador = 0;
-foreach ($arquivos as $arquivo) {
-    if (empty($arquivo)) continue;
+echo "\033[1;36m[*] Substituindo conteúdo interno sem alterar metadados...\033[0m\n";
 
-    $relativo = str_replace($origemLocal . "/", "", $arquivo);
-    $destinoFinal = $destinoAndroid . "/" . $relativo;
-    $pasta = dirname($destinoFinal);
+foreach ($arquivos as $origemAbsoluto) {
+    if (empty($origemAbsoluto)) continue;
 
-    // Cria a pasta e copia arquivo
-    shell_exec("adb shell mkdir -p \"$pasta\"");
-    shell_exec("adb push \"$arquivo\" \"$destinoFinal\" > /dev/null 2>&1");
+    $relativo = str_replace($origem . "/", "", $origemAbsoluto);
+    $destinoFinal = $destino . "/" . $relativo;
 
-    // Opcional: mascarar arquivo individual (pode comentar se quiser mais rápido)
-    // $ts = date("YmdHi.00");
-    // shell_exec("adb shell touch -m -t $ts \"$destinoFinal\" 2>/dev/null");
-
-    // Progresso simples
-    $contador++;
-    if ($contador % 15 === 0) echo ".";
+    // Sobrescreve conteúdo usando cat (sem alterar inode, sem mudar metadado de pasta)
+    $comando = "cat \"$origemAbsoluto\" > \"$destinoFinal\"";
+    shell_exec("adb shell '$comando'");
 }
-echo " [✓]\n";
 
-// Ajuste final: sincronizar Modify == Change na pasta
-$change = shell_exec("adb shell stat -c '%z' \"$destinoAndroid\"");
-$change = trim(explode('.', $change)[0]);
-$touchFormat = date("YmdHi.00", strtotime($change));
-shell_exec("adb shell touch -m -t $touchFormat \"$destinoAndroid\" 2>/dev/null");
-
-echo "\n\033[1;32m[✓] Anti-KellerSS aplicado com sucesso.\033[0m\n";
-echo "\033[1;34m[~] Timestamps sincronizados. Execute o KellerSS para testar.\033[0m\n";
+// Não mexe no timestamp da pasta!
+echo "\033[1;32m[✓] Substituição realizada com zero alterações de pasta.\033[0m\n";
+echo "\033[1;34m[#] Execute o KellerSS — ele não deve detectar nada agora.\033[0m\n";
