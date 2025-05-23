@@ -1,45 +1,32 @@
 <?php
+$localPastaLimpa = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
+$destino = "/sdcard/Android/data/com.dts.freefireth";
 
-// CONFIGURAÇÕES
-$pastaLimpa = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-$pastaAlvo = "/sdcard/Android/data/com.dts.freefireth";
-$pastaBackup = "/sdcard/Android/data/old_freefireth_" . rand(1000, 9999);
-$dataFake = "202504281000.00"; // 28/04/2025 10:00:00
+// Hora fake: 1h antes da hora final da partida
+echo "\033[1;36m[+] Digite a hora final da partida (formato: HH:MM): \033[0m";
+$horaFinal = trim(fgets(STDIN));
+$dataBase = date("d-m-Y");
+[$hora, $minuto] = explode(":", $horaFinal);
+$timestampFake = mktime($hora - 1, $minuto, 0);
+$fakeDate = date("YmdHi", $timestampFake);
+$fakeTouch = date("YmdHi.00", $timestampFake);
 
-echo "\033[1;34m[+] Verificando conexão ADB...\033[0m\n";
-if (strpos(shell_exec("adb shell echo ADB_OK"), "ADB_OK") === false) {
-    echo "\033[1;31m[!] ADB não está conectado. Verifique.\033[0m\n";
-    exit(1);
+echo "\033[1;34m[+] Iniciando substituição furtiva...\033[0m\n";
+
+$arquivos = explode("\n", trim(shell_exec("find \"$localPastaLimpa\" -type f")));
+foreach ($arquivos as $arquivo) {
+    $relativo = str_replace("$localPastaLimpa/", "", $arquivo);
+    $destinoFinal = "$destino/$relativo";
+    $destinoDir = dirname($destinoFinal);
+
+    shell_exec("adb shell mkdir -p \"$destinoDir\"");
+    shell_exec("adb push \"$arquivo\" \"$destinoFinal\" > /dev/null");
+
+    // Camuflagem: apply fake Modify e Access
+    shell_exec("adb shell touch -m -t $fakeTouch \"$destinoFinal\"");
+    sleep(1);
+    shell_exec("adb shell touch -a -t $fakeTouch \"$destinoFinal\"");
 }
 
-// RENOMEIA A PASTA ORIGINAL SUJA
-echo "\033[1;33m[*] Renomeando pasta suja para: $pastaBackup\033[0m\n";
-shell_exec("adb shell mv \"$pastaAlvo\" \"$pastaBackup\"");
-
-// COPIA A PASTA LIMPA SEM APAGAR A ORIGINAL
-echo "\033[1;32m[*] Copiando pasta limpa para o local...\033[0m\n";
-shell_exec("adb shell cp -r \"$pastaLimpa\" \"$pastaAlvo\"");
-
-// LISTA DE PASTAS CRÍTICAS PARA CAMUFLAR
-$pastas = [
-    "/sdcard/Android",
-    "/sdcard/Android/data",
-    $pastaAlvo,
-    "$pastaAlvo/files",
-    "$pastaAlvo/files/contentcache",
-    "$pastaAlvo/files/contentcache/optional",
-    "$pastaAlvo/files/contentcache/optional/android",
-    "$pastaAlvo/files/contentcache/optional/android/gameassetbundles",
-    "$pastaAlvo/cache",
-    "$pastaAlvo/files/MReplays",
-];
-
-// APLICA FAKE DATE COM TOUCH
-echo "\033[1;36m[*] Aplicando hora falsa nas pastas...\033[0m\n";
-foreach ($pastas as $pasta) {
-    shell_exec("adb shell touch -m -t $dataFake \"$pasta\"");
-    echo "\033[1;30m[✓] $pasta\033[0m\n";
-}
-
-echo "\n\033[1;32m[✓] Substituição com cópia e camuflagem concluída com sucesso.\033[0m\n";
-echo "\033[1;30m[#] Data de modificação camuflada para: 28/04/2025 10:00:00 — teste com KellerSS.\033[0m\n";
+echo "\n\033[1;32m[✓] Substituição completa sem remover o original!\033[0m\n";
+echo "\033[1;30m[#] Modify/Access sincronizados para: " . date("d/m/Y H:i", $timestampFake) . "\033[0m\n";
