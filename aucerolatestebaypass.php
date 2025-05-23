@@ -4,7 +4,7 @@ function substituirPastaFFStealth() {
     echo $bold . $azul . "\n[+] Iniciando substituição indetectável...\n" . $cln;
 
     // Pasta de origem (modificada)
-    $origem = "/storage/emulated/0/Pictures/TESTE PINS/PINSSALVOS/com.dts.freefireth";
+    $origem = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
     // Pasta de destino (original do jogo)
     $destino = "/storage/emulated/0/Android/data/com.dts.freefireth";
 
