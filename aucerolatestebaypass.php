@@ -1,32 +1,85 @@
+<?php
+// Cores para o terminal
+$branco = "\e[97m";
+$vermelho = "\e[91m";
+$verde = "\e[92m";
+$azul = "\e[34m";
+$amarelo = "\e[93m";
+$cln = "\e[0m";
+$bold = "\e[1m";
+
+function keller_banner() {
+    echo "\n\e[36m
+    ███████╗██╗  ██╗███████╗██████╗ ███████╗
+    ██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝
+    ███████╗███████║█████╗  ██████╔╝███████╗
+    ╚════██║██╔══██║██╔══╝  ██╔══██╗╚════██║
+    ███████║██║  ██║███████╗██║  ██║███████║
+    ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝\n\n{$cln}";
+}
+
 function substituirPastaFFStealth() {
-    global $cln, $bold, $vermelho, $fverde, $azul;
+    global $cln, $bold, $vermelho, $verde, $azul, $amarelo;
 
-    echo $bold . $azul . "\n[+] Iniciando substituição indetectável...\n" . $cln;
+    echo $bold . $azul . "\n[+] Iniciando substituição stealth...\n" . $cln;
 
-    // Pasta de origem (modificada)
+    // Caminho corrigido sem espaços
     $origem = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-    // Pasta de destino (original do jogo)
     $destino = "/storage/emulated/0/Android/data/com.dts.freefireth";
 
-    // 1. Backup do timestamp original
-    $timestamp = shell_exec("adb shell stat -c '%y' " . escapeshellarg($destino) . " 2>&1");
-    if (strpos($timestamp, 'No such file') !== false) {
-        echo $bold . $vermelho . "[!] Pasta de destino não encontrada!\n" . $cln;
+    // Verificação ADB
+    if (empty(shell_exec("adb devices 2>&1 | grep device"))) {
+        echo $bold . $vermelho . "[!] Conecte o dispositivo via ADB primeiro!\n" . $cln;
         return;
     }
 
-    // 2. Substituição arquivo por arquivo
-    $comando = "adb shell find " . escapeshellarg($origem) . " -type f | while read file; do
-        dest_file=\"" . $destino . "/\${file#*/com.dts.freefireth/}\";
-        cp \"\$file\" \"\$dest_file\" 2>/dev/null;
-    done";
-    shell_exec($comando);
+    // Verifica se as pastas existem
+    if (!file_exists($origem)) {
+        echo $bold . $vermelho . "[!] Pasta de origem não encontrada!\n" . $cln;
+        return;
+    }
 
-    // 3. Restaurar timestamp
-    shell_exec("adb shell touch -d " . escapeshellarg(trim($timestamp)) . " " . escapeshellarg($destino));
+    // Backup de timestamps
+    echo $amarelo . "[+] Backup de timestamps...\n";
+    $timestamps = shell_exec("adb shell find \"$destino\" -type f -exec stat -c '%n %y' {} \;");
 
-    // 4. Limpar logs
+    // Substituição
+    echo $amarelo . "[+] Substituindo arquivos...\n";
+    shell_exec("adb shell cp -rf \"$origem/\"* \"$destino/\" 2>/dev/null");
+
+    // Restaura timestamps
+    echo $amarelo . "[+] Restaurando timestamps...\n";
+    foreach (explode("\n", $timestamps) as $linha) {
+        if (!empty($linha)) {
+            list($arquivo, $data) = explode(" ", $linha, 2);
+            shell_exec("adb shell touch -d \"$data\" \"$arquivo\" 2>/dev/null");
+        }
+    }
+
+    // Limpeza
     shell_exec("adb logcat -c");
-
-    echo $bold . $fverde . "[+] Substituição concluída sem rastros.\n" . $cln;
+    echo $bold . $verde . "[+] Substituição concluída com sucesso!\n" . $cln;
 }
+
+// Menu principal
+system("clear");
+keller_banner();
+
+echo $bold . $azul . "
+[1] Substituir pasta Free Fire
+[2] Sair
+\n" . $cln;
+
+echo $bold . "Selecione uma opção: " . $cln;
+$opcao = trim(fgets(STDIN));
+
+switch ($opcao) {
+    case 1:
+        substituirPastaFFStealth();
+        break;
+    case 2:
+        exit;
+    default:
+        echo $vermelho . "Opção inválida!\n";
+}
+?>
