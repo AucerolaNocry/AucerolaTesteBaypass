@@ -2,32 +2,40 @@
 
 $origem = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
 $destino = "/sdcard/Android/data/com.dts.freefireth";
+$dataFake = date("YmdHi.00"); // Timestamp camuflado (modifique se necessário)
 
-// Verifica se ADB está ativo
-echo "\e[36m[+] Verificando ADB...\e[0m\n";
-$adbOk = shell_exec("adb shell echo ADB_OK");
-if (strpos($adbOk, "ADB_OK") === false) {
-    echo "\e[31m[!] ADB não está conectado. Use 'adb tcpip 5555' e conecte via IP.\e[0m\n";
+echo "\n\033[1;34m[+] Anti-KellerSS: substituindo pasta suja por limpa...\033[0m\n";
+
+// Verifica se ADB está funcional
+if (strpos(shell_exec("adb shell echo ADB_OK"), "ADB_OK") === false) {
+    echo "\033[1;31m[!] ADB não conectado. Execute 'adb tcpip 5555' e conecte com IP.\033[0m\n";
     exit(1);
 }
 
-// Verifica se pasta destino existe
-echo "\e[36m[+] Verificando se a pasta destino existe...\e[0m\n";
-$existe = trim(shell_exec("adb shell '[ -d \"$destino\" ] && echo SIM || echo NAO'"));
-if ($existe !== "SIM") {
-    echo "\e[31m[!] Pasta $destino não encontrada. Inicie o jogo uma vez antes.\e[0m\n";
+// Cria lista de arquivos da pasta limpa
+$listaArquivos = explode("\n", trim(shell_exec("adb shell find \"$origem\" -type f")));
+if (empty($listaArquivos)) {
+    echo "\033[1;31m[!] Nenhum arquivo encontrado na pasta de origem limpa.\033[0m\n";
     exit(1);
 }
 
-// Copiando arquivos da pasta limpa
-echo "\e[32m[*] Copiando arquivos da pasta limpa para a pasta do jogo...\e[0m\n";
-shell_exec("adb shell 'cp -r \"$origem\"/* \"$destino\"/'");
+// Substitui arquivos um por um
+foreach ($listaArquivos as $origemAbsoluta) {
+    $relativo = trim(str_replace("$origem/", "", $origemAbsoluta));
+    $destinoFinal = "$destino/$relativo";
 
-// Tentar mascarar com touch
-$dataTouch = date("YmdHi.00"); // Ex: 202505231530.00
-echo "\e[33m[*] Aplicando touch para mascarar modificação...\e[0m\n";
-shell_exec("adb shell 'find \"$destino\" -type f -exec touch -m -t $dataTouch {} \;' 2>/dev/null");
-shell_exec("adb shell 'touch -m -t $dataTouch \"$destino\"' 2>/dev/null");
+    $destinoDir = dirname($destinoFinal);
+    shell_exec("adb shell mkdir -p \"$destinoDir\"");
+    shell_exec("adb shell cp \"$origemAbsoluta\" \"$destinoFinal\"");
 
-echo "\n\e[32m[✓] Pasta atualizada com arquivos limpos, sem apagar a original.\e[0m\n";
-echo "\e[90m[#] Agora execute o KellerSS e veja se detecta algo.\e[0m\n";
+    // Aplica timestamp camuflado
+    shell_exec("adb shell touch -m -t $dataFake \"$destinoFinal\" 2>/dev/null");
+
+    echo "\033[1;32m[*] Substituído: $relativo\033[0m\n";
+}
+
+// Camufla a pasta principal
+shell_exec("adb shell touch -m -t $dataFake \"$destino\" 2>/dev/null");
+
+echo "\n\033[1;32m[✓] Substituição completa, sem apagar a pasta.\033[0m\n";
+echo "\033[1;30m[#] Execute o KellerSS para verificar se a detecção foi invalidada.\033[0m\n";
