@@ -1,50 +1,29 @@
 <?php
 
-$origem = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-$destino = "/sdcard/Android/data/com.dts.freefireth";
+$localPastaLimpa = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
+$pastaOriginal = "/sdcard/Android/data/com.dts.freefireth";
+$pastaBackup = "/sdcard/Android/data/old_freefireth_" . rand(1000,9999);
 
-// 1. Verifica ADB
+// Verifica ADB
 echo "\033[1;34m[+] Verificando ADB...\033[0m\n";
 if (strpos(shell_exec("adb shell echo ADB_OK"), "ADB_OK") === false) {
-    echo "\033[1;31m[!] ADB não está conectado. Use 'adb tcpip 5555'.\033[0m\n";
+    echo "\033[1;31m[!] ADB não está conectado.\033[0m\n";
     exit(1);
 }
 
-// 2. Lista arquivos da pasta limpa
-echo "\033[1;36m[*] Coletando arquivos da pasta limpa...\033[0m\n";
-$lista = shell_exec("adb shell find \"$origem\" -type f");
-$arquivos = explode("\n", trim($lista));
-$total = count($arquivos);
+// Renomeia a pasta suja
+echo "\033[1;33m[*] Renomeando pasta suja para: $pastaBackup\033[0m\n";
+shell_exec("adb shell mv \"$pastaOriginal\" \"$pastaBackup\"");
 
-if ($total === 0) {
-    echo "\033[1;31m[!] Nenhum arquivo encontrado.\033[0m\n";
-    exit(1);
-}
+// Move a pasta limpa para o local esperado
+echo "\033[1;32m[*] Substituindo pela pasta limpa...\033[0m\n";
+shell_exec("adb shell mv \"$localPastaLimpa\" \"$pastaOriginal\"");
 
-// 3. Substitui com 'cat' um a um
-echo "\033[1;32m[*] Substituindo arquivos com cat...\033[0m\n";
-foreach ($arquivos as $origemAbs) {
-    if (empty($origemAbs)) continue;
+// Aplica data falsa opcional (comente se não quiser)
+$dataFake = date("YmdHi.00", strtotime("-2 days"));
+echo "\033[1;36m[*] Aplicando hora falsa na nova pasta...\033[0m\n";
+shell_exec("adb shell touch -m -t $dataFake \"$pastaOriginal\"");
 
-    $rel = str_replace("$origem/", "", $origemAbs);
-    $dest = "$destino/$rel";
-
-    shell_exec("adb shell 'cat \"$origemAbs\" > \"$dest\"'");
-}
-
-// 4. Camufla arquivos críticos (.bin, .json, shaders)
-echo "\033[1;36m[*] Camuflando arquivos suspeitos...\033[0m\n";
-$fakeTime = date("YmdHi.00", strtotime("-2 days"));
-foreach ($arquivos as $origemAbs) {
-    if (empty($origemAbs)) continue;
-
-    $rel = str_replace("$origem/", "", $origemAbs);
-    $dest = "$destino/$rel";
-
-    if (preg_match('/\.bin$|\.json$|optionalab_|shaders|\.unity3d$/', $rel)) {
-        shell_exec("adb shell touch -m -t $fakeTime \"$dest\" 2>/dev/null");
-    }
-}
-
-echo "\n\033[1;32m[✓] Substituição silenciosa concluída sem apagar pastas.\033[0m\n";
-echo "\033[1;30m[#] Teste agora com o KellerSS para verificar se ele detecta.\033[0m\n";
+// Finalização
+echo "\n\033[1;32m[✓] Pasta limpa aplicada com sucesso e camuflada.\033[0m\n";
+echo "\033[1;30m[#] Teste agora no KellerSS.\033[0m\n";
