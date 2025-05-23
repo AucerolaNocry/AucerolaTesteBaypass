@@ -7,15 +7,16 @@ $tarfile = "/sdcard/temp_ff_clean.tar";
 $busyboxBin = "/data/local/tmp/busybox";
 $localBusybox = __DIR__ . "/busybox";
 
-// === 1. Baixa BusyBox estático, se não existir ===
+// === 1. Baixa BusyBox estático com verificação ===
 if (!file_exists($localBusybox)) {
     echo "\033[1;36m[*] Baixando BusyBox estático funcional...\033[0m\n";
-    shell_exec("curl -L -o busybox https://raw.githubusercontent.com/Elektordi/busybox-static/main/busybox-armv7l");
+    shell_exec("curl -L -o busybox https://github.com/elektordi/busybox-static/raw/main/binaries-armv7/busybox");
     shell_exec("chmod +x busybox");
 }
 
-if (!file_exists($localBusybox)) {
-    echo "\033[1;31m[!] Falha ao baixar o BusyBox. Verifique a conexão.\033[0m\n";
+if (!file_exists($localBusybox) || filesize($localBusybox) < 300000) {
+    echo "\033[1;31m[!] BusyBox está corrompido ou inválido. Verifique a conexão.\033[0m\n";
+    if (file_exists($localBusybox)) unlink($localBusybox);
     exit(1);
 }
 
