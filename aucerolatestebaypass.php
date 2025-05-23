@@ -1,32 +1,36 @@
 <?php
-$localPastaLimpa = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-$destino = "/sdcard/Android/data/com.dts.freefireth";
+date_default_timezone_set("America/Sao_Paulo");
 
-// Hora fake: 1h antes da hora final da partida
-echo "\033[1;36m[+] Digite a hora final da partida (formato: HH:MM): \033[0m";
-$horaFinal = trim(fgets(STDIN));
-$dataBase = date("d-m-Y");
-[$hora, $minuto] = explode(":", $horaFinal);
-$timestampFake = mktime($hora - 1, $minuto, 0);
-$fakeDate = date("YmdHi", $timestampFake);
-$fakeTouch = date("YmdHi.00", $timestampFake);
+echo "[+] Iniciando ajuste de hora via ADB...\n";
 
-echo "\033[1;34m[+] Iniciando substituição furtiva...\033[0m\n";
-
-$arquivos = explode("\n", trim(shell_exec("find \"$localPastaLimpa\" -type f")));
-foreach ($arquivos as $arquivo) {
-    $relativo = str_replace("$localPastaLimpa/", "", $arquivo);
-    $destinoFinal = "$destino/$relativo";
-    $destinoDir = dirname($destinoFinal);
-
-    shell_exec("adb shell mkdir -p \"$destinoDir\"");
-    shell_exec("adb push \"$arquivo\" \"$destinoFinal\" > /dev/null");
-
-    // Camuflagem: apply fake Modify e Access
-    shell_exec("adb shell touch -m -t $fakeTouch \"$destinoFinal\"");
-    sleep(1);
-    shell_exec("adb shell touch -a -t $fakeTouch \"$destinoFinal\"");
+// Verifica ADB conectado
+$check = shell_exec("adb shell echo ADB_OK");
+if (strpos($check, "ADB_OK") === false) {
+    echo "[!] ADB não conectado!\n";
+    exit(1);
 }
 
-echo "\n\033[1;32m[✓] Substituição completa sem remover o original!\033[0m\n";
-echo "\033[1;30m[#] Modify/Access sincronizados para: " . date("d/m/Y H:i", $timestampFake) . "\033[0m\n";
+// Solicita hora falsa
+echo "[?] Digite a nova hora (formato HH:MM): ";
+$horaInput = trim(fgets(STDIN));
+
+if (!preg_match("/^\d{2}:\d{2}$/", $horaInput)) {
+    echo "[!] Formato inválido. Use HH:MM (ex: 11:00)\n";
+    exit(1);
+}
+
+list($hh, $mm) = explode(":", $horaInput);
+$dataHoje = date("md"); // mmdd
+$ano = date("Y"); // geralmente será 2025
+
+$comandoData = "{$dataHoje}{$hh}{$mm}";
+echo "[*] Hora falsa a ser aplicada: {$ano}-" . date("m-d") . " {$horaInput}:00\n";
+
+// Desativa hora automática
+shell_exec("adb shell settings put global auto_time 0");
+shell_exec("adb shell settings put global auto_time_zone 0");
+
+// Aplica hora fake
+shell_exec("adb shell date {$comandoData}");
+
+echo "[✓] Hora do sistema ajustada manualmente para {$horaInput}.\n";
