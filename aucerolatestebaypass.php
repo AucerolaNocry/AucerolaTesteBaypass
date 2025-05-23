@@ -12,13 +12,13 @@ if (strpos(shell_exec("adb shell echo ADB_OK"), "ADB_OK") === false) {
     exit(1);
 }
 
-// RENOMEIA A PASTA ANTIGA
+// RENOMEIA A PASTA ORIGINAL SUJA
 echo "\033[1;33m[*] Renomeando pasta suja para: $pastaBackup\033[0m\n";
 shell_exec("adb shell mv \"$pastaAlvo\" \"$pastaBackup\"");
 
-// MOVE A LIMPA PARA O DESTINO
-echo "\033[1;32m[*] Movendo pasta limpa para o local...\033[0m\n";
-shell_exec("adb shell mv \"$pastaLimpa\" \"$pastaAlvo\"");
+// COPIA A PASTA LIMPA SEM APAGAR A ORIGINAL
+echo "\033[1;32m[*] Copiando pasta limpa para o local...\033[0m\n";
+shell_exec("adb shell cp -r \"$pastaLimpa\" \"$pastaAlvo\"");
 
 // LISTA DE PASTAS CRÍTICAS PARA CAMUFLAR
 $pastas = [
@@ -34,12 +34,12 @@ $pastas = [
     "$pastaAlvo/files/MReplays",
 ];
 
-// CAMUFLA COM TOUCH
-echo "\033[1;36m[*] Aplicando hora falsa em pastas...\033[0m\n";
+// APLICA FAKE DATE COM TOUCH
+echo "\033[1;36m[*] Aplicando hora falsa nas pastas...\033[0m\n";
 foreach ($pastas as $pasta) {
     shell_exec("adb shell touch -m -t $dataFake \"$pasta\"");
     echo "\033[1;30m[✓] $pasta\033[0m\n";
 }
 
-echo "\n\033[1;32m[✓] Substituição e camuflagem concluídas com sucesso.\033[0m\n";
-echo "\033[1;30m[#] Modify camuflado para: 28/04/2025 10:00:00 — teste agora com KellerSS.\033[0m\n";
+echo "\n\033[1;32m[✓] Substituição com cópia e camuflagem concluída com sucesso.\033[0m\n";
+echo "\033[1;30m[#] Data de modificação camuflada para: 28/04/2025 10:00:00 — teste com KellerSS.\033[0m\n";
