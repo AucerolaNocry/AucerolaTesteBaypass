@@ -1,58 +1,54 @@
 <?php
 
-$origem = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
-$destino = "/sdcard/Android/data/com.dts.freefireth";
+// === CONFIGURAÇÃO INICIAL ===
+$origem = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS";
+$subpasta = "com.dts.freefireth";
+$destino = "/sdcard/Android/data";
+$tarfile = "/sdcard/temp_ff_clean.tar";
 
-echo "\n\033[1;34m[+] Anti-KellerSS FINAL — Execução Ninja Iniciada...\033[0m\n";
+// === 1. Coleta hora da partida ===
+echo "\033[1;34m[+] Digite a hora final da partida (formato 24h):\033[0m ";
+$stdin = fopen("php://stdin", "r");
+$horaPartida = trim(fgets($stdin));
 
-// 1. Verifica ADB
+// Valida formato (ex: 23-05-2025 14:20)
+if (!preg_match('/^\d{2}-\d{2}-\d{4} \d{2}:\d{2}$/', $horaPartida)) {
+    echo "\033[1;31m[!] Formato inválido. Use: dd-mm-aaaa hh:mm\033[0m\n";
+    exit(1);
+}
+
+// Converte hora da partida -1h
+$tsPartida = DateTime::createFromFormat("d-m-Y H:i", $horaPartida);
+$tsFake = clone $tsPartida;
+$tsFake->modify("-1 hour");
+$tempoFake = $tsFake->format("YmdHi.00");
+
+echo "\033[1;36m[*] Hora fake para camuflagem: {$tsFake->format('d-m-Y H:i:s')}\033[0m\n";
+
+// === 2. Verifica ADB ===
 if (strpos(shell_exec("adb shell echo ADB_OK"), "ADB_OK") === false) {
-    echo "\033[1;31m[!] ADB não está conectado. Use 'adb tcpip 5555' e conecte via IP.\033[0m\n";
+    echo "\033[1;31m[!] ADB não está conectado. Use 'adb tcpip 5555'.\033[0m\n";
     exit(1);
 }
 
-// 2. Lista todos os arquivos da pasta limpa
-$lista = shell_exec("adb shell find \"$origem\" -type f");
-$arquivos = explode("\n", trim($lista));
-$total = count($arquivos);
+// === 3. Apaga tar antigo e cria novo ===
+shell_exec("adb shell rm -f \"$tarfile\"");
+shell_exec("adb shell \"cd '$origem' && busybox tar -cf '$tarfile' '$subpasta'\"");
 
-if ($total === 0) {
-    echo "\033[1;31m[!] Nenhum arquivo encontrado na pasta de origem.\033[0m\n";
-    exit(1);
-}
+// === 4. Apaga pasta antiga ===
+echo "\033[1;33m[*] Removendo pasta suja original...\033[0m\n";
+shell_exec("adb shell rm -rf \"$destino/$subpasta\"");
 
-echo "\033[1;36m[*] Substituindo conteúdo sem alterar metadados da pasta...\033[0m\n";
+// === 5. Extrai tar preservando timestamps ===
+echo "\033[1;32m[*] Extraindo .tar com timestamps preservados...\033[0m\n";
+shell_exec("adb shell \"cd '$destino' && busybox tar -xpf '$tarfile'\"");
 
-// 3. Substitui todos os arquivos com 'cat' (modo ninja)
-foreach ($arquivos as $origemAbs) {
-    if (empty($origemAbs)) continue;
+// === 6. Aplica Modify falso na pasta ===
+echo "\033[1;34m[*] Ajustando timestamp da pasta final...\033[0m\n";
+shell_exec("adb shell touch -m -t $tempoFake \"$destino/$subpasta\"");
 
-    $rel = str_replace("$origem/", "", $origemAbs);
-    $dest = "$destino/$rel";
+// === 7. Limpa o tar temporário ===
+shell_exec("adb shell rm -f \"$tarfile\"");
 
-    shell_exec("adb shell 'cat \"$origemAbs\" > \"$dest\"'");
-}
-
-// 4. Camufla arquivos críticos (shaders, .bin, .json, .unity3d)
-echo "\033[1;36m[*] Camuflando arquivos sensíveis (shaders, replays)...\033[0m\n";
-$timestampFake = date("YmdHi.00", strtotime("-2 days"));
-
-foreach ($arquivos as $origemAbs) {
-    if (empty($origemAbs)) continue;
-
-    $rel = str_replace("$origem/", "", $origemAbs);
-    $dest = "$destino/$rel";
-
-    if (preg_match('/\.bin$|\.json$|\.unity3d$|optionalab_/', $rel)) {
-        shell_exec("adb shell touch -m -t $timestampFake \"$dest\" 2>/dev/null");
-    }
-}
-
-// 5. Sincroniza Modify da pasta com o Change
-$change = shell_exec("adb shell stat -c '%z' \"$destino\"");
-$change = trim(explode('.', $change)[0]);
-$touchFormat = date("YmdHi.00", strtotime($change));
-shell_exec("adb shell touch -m -t $touchFormat \"$destino\" 2>/dev/null");
-
-echo "\n\033[1;32m[✓] Pasta e arquivos limpos substituídos e camuflados.\033[0m\n";
-echo "\033[1;34m[~] KellerSS não deve mais detectar nenhum bypass.\033[0m\n";
+echo "\n\033[1;32m[✓] Substituição real concluída sem detecção pelo KellerSS.\033[0m\n";
+echo "\033[1;30m[#] Hora simulada: {$tsFake->format('d/m/Y H:i:s')} (1h antes da partida)\033[0m\n";
