@@ -1,51 +1,76 @@
-
 <?php
+date_default_timezone_set("America/Sao_Paulo");
 
-// Cores para output no terminal
+// Funções de cor
+$azul = "\033[1;34m";
 $verde = "\033[1;32m";
 $vermelho = "\033[1;31m";
 $amarelo = "\033[1;33m";
-$azul = "\033[1;34m";
+$branco = "\033[1;37m";
 $reset = "\033[0m";
 
-// Passo 1: Desativa ajuste automático de data/hora
-echo "{$azul}[+] Desativando ajuste automático de data/hora...{$reset}\n";
-shell_exec("adb shell settings put global auto_time 0");
-shell_exec("adb shell settings put global auto_time_zone 0");
+// Função auxiliar
+function executar($comando) {
+    return shell_exec($comando);
+}
 
-// Passo 2: Abre tela de configuração de hora para o usuário alterar manualmente
-echo "{$amarelo}[!] Altere manualmente a hora do dispositivo para ANTES da partida.{$reset}\n";
-echo "{$amarelo}[!] Pressione ENTER após alterar a hora.{$reset}\n";
-shell_exec("adb shell am start -a android.settings.DATE_SETTINGS");
-readline("[ENTER] Hora alterada? Continuando...\n");
+echo "{$azul}[+] Anti-KellerSS — Inicializando bypass de horário...{$reset}\n";
 
-// Passo 3: Salva logcat atual (antes da alteração da hora voltar ao normal)
-echo "{$azul}[+] Salvando logcat atual...{$reset}\n";
-$logfile = "/data/data/com.termux/files/home/log_antigo.txt";
-shell_exec("adb logcat -d > $logfile");
+// Passo 1: desativa ajuste automático
+echo "{$amarelo}[*] Desativando horário automático...{$reset}\n";
+executar("adb shell settings put global auto_time 0 > /dev/null 2>&1");
 
-// Passo 4: Reativa hora automática
-echo "{$azul}[+] Reativando ajuste automático de hora...{$reset}\n";
-shell_exec("adb shell settings put global auto_time 1");
-shell_exec("adb shell settings put global auto_time_zone 1");
+// Passo 2: aplica hora manual falsa (30 minutos atrás)
+$agora = new DateTime();
+$falsa = $agora->modify('-30 minutes');
+$dataFake = $falsa->format('Ymd.His');
+echo "{$verde}[*] Hora falsa aplicada: {$falsa->format('d/m/Y H:i:s')}{$reset}\n";
+executar("adb shell su -c 'date -s {$dataFake}' || adb shell date -s {$dataFake}");
 
-// Passo 5: Limpa o logcat para esconder alterações de hora
-echo "{$azul}[+] Limpando logcat...{$reset}\n";
-shell_exec("adb logcat -c");
+// Passo 3: simula uso real com logs legítimos
+echo "{$amarelo}[*] Rodando ações para gerar logs...{$reset}\n";
+executar("adb shell input keyevent 3"); // Voltar à home
+sleep(1);
+executar("adb shell am start -a android.intent.action.VIEW -d https://www.google.com");
+sleep(2);
 
-// Passo 6: Simula reaplicação de logs antigos para não deixar o logcat vazio
-echo "{$verde}[✓] Logcat limpo. Aplicando logs visuais antigos...{$reset}\n";
-shell_exec("adb shell log -t system \"boot_completed\"");
-shell_exec("adb shell log -t app_process \"app: com.dts.freefireth iniciado\"");
-shell_exec("adb shell log -t system \"modo avião desativado\"");
+// Passo 4: exporta logcat e limpa real
+$logPath = "/sdcard/log_falso_keller.log";
+executar("adb logcat -d > $logPath");
+executar("adb logcat -c");
+echo "{$verde}[✓] Log original salvo e logcat limpo com sucesso!{$reset}\n";
 
-// Final
+// Passo 5: reativa hora automática
+echo "{$amarelo}[*] Reativando horário automático...{$reset}\n";
+executar("adb shell settings put global auto_time 1 > /dev/null 2>&1");
 
+// Passo 6: continuar com substituição camuflada
+$origem = "/storage/emulated/0/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
+$destino = "/sdcard/Android/data/com.dts.freefireth";
 
+echo "{$azul}[+] Iniciando substituição furtiva da pasta com.dts.freefireth...{$reset}\n";
 
+// Gera lista de arquivos
+$lista = executar("find \"$origem\" -type f");
+$arquivos = explode("\n", trim($lista));
 
+foreach ($arquivos as $arquivo) {
+    if (empty($arquivo)) continue;
+    $relativo = str_replace($origem . "/", "", $arquivo);
+    $destinoFinal = $destino . "/" . $relativo;
 
+    // Cria subpasta no destino
+    $pasta = dirname($destinoFinal);
+    executar("adb shell mkdir -p \"$pasta\"");
 
+    // Copia conteúdo via cat para evitar mudança no inode (menos suspeito)
+    executar("adb shell 'cat > \"$destinoFinal\"' < \"$arquivo\"");
 
-echo "\n{$verde}[✓] Processo concluído. KellerSS não deve detectar alterações.{$reset}\n";
-echo "{$amarelo}[#] Log original salvo em: $logfile{$reset}\n";
+    // Altera timestamps com touch antigo
+    $ts = $falsa->format("YmdHi.00");
+    executar("adb shell touch -m -t $ts \"$destinoFinal\" 2>/dev/null");
+    echo "{$verde}[*] Copiado: $relativo{$reset}\n";
+}
+
+echo "{$verde}\n[✓] Pasta substituída e camuflada com hora falsa.\n";
+echo "[#] Bypass horário + substituição executado com sucesso!\n{$reset}";
