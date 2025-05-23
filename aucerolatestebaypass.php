@@ -1,70 +1,50 @@
 <?php
 
-$origem = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS";
-$subpasta = "com.dts.freefireth";
-$destino = "/sdcard/Android/data";
-$tarfile = "/sdcard/temp_ff_clean.tar";
-$busyboxBin = "/data/local/tmp/busybox";
-$localBusybox = __DIR__ . "/busybox";
+$origem = "/sdcard/Pictures/TESTE/PINS/PINSSALVOS/com.dts.freefireth";
+$destino = "/sdcard/Android/data/com.dts.freefireth";
 
-// === 1. Baixa BusyBox estático com verificação ===
-if (!file_exists($localBusybox)) {
-    echo "\033[1;36m[*] Baixando BusyBox estático funcional...\033[0m\n";
-    shell_exec("curl -L -o busybox https://github.com/elektordi/busybox-static/raw/main/binaries-armv7/busybox");
-    shell_exec("chmod +x busybox");
-}
-
-if (!file_exists($localBusybox) || filesize($localBusybox) < 300000) {
-    echo "\033[1;31m[!] BusyBox está corrompido ou inválido. Verifique a conexão.\033[0m\n";
-    if (file_exists($localBusybox)) unlink($localBusybox);
-    exit(1);
-}
-
-// === 2. Copia BusyBox para Android ===
-echo "\033[1;36m[*] Copiando BusyBox para o Android...\033[0m\n";
-shell_exec("adb push \"$localBusybox\" \"$busyboxBin\" > /dev/null");
-shell_exec("adb shell chmod +x \"$busyboxBin\"");
-
-// === 3. Entrada da hora da partida ===
-echo "\033[1;34m[+] Digite a data e hora final da partida (formato: dd-mm HH:MM):\033[0m ";
-$stdin = fopen("php://stdin", "r");
-$entrada = trim(fgets($stdin));
-
-if (!preg_match('/^\d{2}-\d{2} \d{2}:\d{2}$/', $entrada)) {
-    echo "\033[1;31m[!] Formato inválido. Use: dd-mm HH:MM\033[0m\n";
-    exit(1);
-}
-
-$entradaCompleta = "2025-" . substr($entrada, 3, 2) . "-" . substr($entrada, 0, 2) . " " . substr($entrada, 6);
-$tsPartida = DateTime::createFromFormat("Y-m-d H:i", $entradaCompleta);
-$tsFake = clone $tsPartida;
-$tsFake->modify("-1 hour");
-$tempoFake = $tsFake->format("YmdHi.00");
-
-// === 4. Verifica ADB ===
+// 1. Verifica ADB
+echo "\033[1;34m[+] Verificando ADB...\033[0m\n";
 if (strpos(shell_exec("adb shell echo ADB_OK"), "ADB_OK") === false) {
     echo "\033[1;31m[!] ADB não está conectado. Use 'adb tcpip 5555'.\033[0m\n";
     exit(1);
 }
 
-// === 5. Cria tar da pasta limpa com BusyBox ===
-echo "\033[1;36m[*] Criando tar da pasta limpa com busybox...\033[0m\n";
-shell_exec("adb shell rm -f \"$tarfile\"");
-shell_exec("adb shell \"cd '$origem' && '$busyboxBin' tar -cf '$tarfile' '$subpasta'\"");
+// 2. Lista arquivos da pasta limpa
+echo "\033[1;36m[*] Coletando arquivos da pasta limpa...\033[0m\n";
+$lista = shell_exec("adb shell find \"$origem\" -type f");
+$arquivos = explode("\n", trim($lista));
+$total = count($arquivos);
 
-// === 6. Remove pasta original suja ===
-echo "\033[1;33m[*] Removendo pasta original...\033[0m\n";
-shell_exec("adb shell rm -rf \"$destino/$subpasta\"");
+if ($total === 0) {
+    echo "\033[1;31m[!] Nenhum arquivo encontrado.\033[0m\n";
+    exit(1);
+}
 
-// === 7. Extrai e camufla com BusyBox ===
-echo "\033[1;32m[*] Extraindo e aplicando camuflagem...\033[0m\n";
-shell_exec("adb shell \"cd '$destino' && '$busyboxBin' tar -xpf '$tarfile'\"");
+// 3. Substitui com 'cat' um a um
+echo "\033[1;32m[*] Substituindo arquivos com cat...\033[0m\n";
+foreach ($arquivos as $origemAbs) {
+    if (empty($origemAbs)) continue;
 
-// === 8. Aplica Modify fake à pasta
-shell_exec("adb shell touch -m -t $tempoFake \"$destino/$subpasta\"");
+    $rel = str_replace("$origem/", "", $origemAbs);
+    $dest = "$destino/$rel";
 
-// === 9. Remove tar temporário
-shell_exec("adb shell rm -f \"$tarfile\"");
+    shell_exec("adb shell 'cat \"$origemAbs\" > \"$dest\"'");
+}
 
-echo "\n\033[1;32m[✓] Substituição e camuflagem concluídas com sucesso!\033[0m\n";
-echo "\033[1;30m[#] Modify ajustado para: {$tsFake->format('d/m/Y H:i:s')}\033[0m\n";
+// 4. Camufla arquivos críticos (.bin, .json, shaders)
+echo "\033[1;36m[*] Camuflando arquivos suspeitos...\033[0m\n";
+$fakeTime = date("YmdHi.00", strtotime("-2 days"));
+foreach ($arquivos as $origemAbs) {
+    if (empty($origemAbs)) continue;
+
+    $rel = str_replace("$origem/", "", $origemAbs);
+    $dest = "$destino/$rel";
+
+    if (preg_match('/\.bin$|\.json$|optionalab_|shaders|\.unity3d$/', $rel)) {
+        shell_exec("adb shell touch -m -t $fakeTime \"$dest\" 2>/dev/null");
+    }
+}
+
+echo "\n\033[1;32m[✓] Substituição silenciosa concluída sem apagar pastas.\033[0m\n";
+echo "\033[1;30m[#] Teste agora com o KellerSS para verificar se ele detecta.\033[0m\n";
